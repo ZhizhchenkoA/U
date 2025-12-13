@@ -1,11 +1,6 @@
 #pragma once
 
-
-class Error{};
-
-class EmptyListError: public Error{};
-
-class EndOfIterator: public Error{};
+#include "error.h"
 
 template <class T>
 class List{
@@ -20,44 +15,46 @@ class List{
 public:
 
     List(): head(nullptr), size_(0){};
-    
+    List(const List&) = delete;
+    List& operator=(const List&) = delete;
+
     void push(T);
     T pop();
     
-    void clear(){
-        while(size_)
-            pop();
-    }
-    int size() const{
-        return size_;
-    }
-    ~List(){
-        clear();
-    }
+    void clear() { while(size_) pop(); }
+    int  size() const{ return size_; }
+    ~List(){ clear(); }
+
     template <class X>
     class Iterator{
         list_node<X>* cur_node;
         
-        public:
-            Iterator(const List<X> *lst){
-                cur_node = lst->head;
-            }
-            X next(){
-                if (!cur_node)
-                    throw EndOfIterator();
-                X val = cur_node->value;
-                cur_node = cur_node->next;
-                return val;
-            }
-            bool isEnd(){
-                return !cur_node;
-            }
+    public:
+        Iterator(const List<X> *lst){
+            cur_node = lst->head;
+        }
+        X next(){
+            if (!cur_node)
+                throw EndOfIterator();
+            X val = cur_node->value;
+            cur_node = cur_node->next;
+            return val;
+        }
+        bool isEnd(){ return !cur_node;}
     };
+
     Iterator<T> iter() const{
         return Iterator<T>(this);
     }
-};
 
+    bool in_list(T comp_obj){
+        bool flag = false;
+        Iterator<T> it = this->iter();
+        while(!it.isEnd() && !flag)
+            flag = (comp_obj == it.next());
+        return flag;
+    }
+};
 
 template <class T>
 inline void List<T>::push(T value)
@@ -68,7 +65,6 @@ inline void List<T>::push(T value)
     this->head = new_elem;
     size_++;
 }
-
 
 template <class T>
 inline T List<T>::pop()
@@ -82,4 +78,3 @@ inline T List<T>::pop()
     delete tmp;    
     return return_value;
 }
-
