@@ -16,10 +16,15 @@ public:
 
     List(): head(nullptr), size_(0){};
     List(const List&) = delete;
+    List(List&& other): head(other.head), size_(other.size_){
+        other.head = nullptr;
+        other.size = 0;
+    }
     List& operator=(const List&) = delete;
 
     void push(T);
     T pop();
+    void delete_elem(list_node<T>*, list_node<T>*);
     
     void clear() { while(size_) pop(); }
     int  size() const{ return size_; }
@@ -77,4 +82,10 @@ inline T List<T>::pop()
     this->size_--;
     delete tmp;    
     return return_value;
+}
+
+template <class T>
+inline void List<T>::delete_elem(list_node<T>* prev, list_node<T>* del_elem)
+{
+
 }

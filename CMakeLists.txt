@@ -15,8 +15,8 @@ find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
 # Собрать все исходные файлы
 file(GLOB SOURCES
-    "*.cpp"                
-    "src/*.cpp"           
+    "*.cpp"
+    "src/*.cpp"
 )
 
 file(GLOB HEADERS
@@ -40,11 +40,12 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/ui"
 )
 
-# Настроить include директории
+# Include директории
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/headers
-    ${CMAKE_CURRENT_BINARY_DIR}  # для сгенерированных ui_*.h файлов
+    ${CMAKE_CURRENT_SOURCE_DIR}/external      # ← ВАЖНО
+    ${CMAKE_CURRENT_BINARY_DIR}               # ui_*.h
 )
 
 # Связать с библиотеками Qt
@@ -53,9 +54,14 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Widgets
 )
 
-# Для правильной работы UIC добавить флаг компиляции
+# Для правильной работы UIC
 target_compile_definitions(${PROJECT_NAME} PRIVATE
-    -DQT_NO_KEYWORDS
+    QT_NO_KEYWORDS
+)
+
+file(COPY
+    ${CMAKE_CURRENT_SOURCE_DIR}/data
+    DESTINATION ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 if(WIN32)
