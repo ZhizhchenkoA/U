@@ -59,6 +59,18 @@ public:
             flag = (comp_obj == it.next());
         return flag;
     }
+
+    T* find_in_list(T comp_obj){
+        bool flag = false;
+        T* tmp = nullptr;
+        Iterator<T> it = this->iter();
+        while(!it.isEnd() && !flag){
+            flag = (comp_obj == it.next());
+            tmp = it.next();
+        }
+        if(!flag) tmp = nullptr;
+        return tmp;
+    }
 };
 
 template <class T>
