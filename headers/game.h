@@ -2,16 +2,40 @@
 
 #include "subject.h"
 #include "str.h"
+#include "list.h"
 
-class Game{
-  String FileName;
-  int NumberOfSubjects;
-  AbstractSubject* Position;
-  int Turn;   // 0 - player, 1 - computer
-  List<AbstractSubject> Visited;
+class Game {
+private:
+    int NumberOfSubjects;
+    List<AbstractSubject*> Subjects;
+    AbstractSubject* StartPosition;
+    AbstractSubject* Position;
+    AbstractSubject* FinalPosition;
+    int Turn;   // 0 - player, 1 - computer
+    List<AbstractSubject*> Visited;
+    int Mistakes;
+    bool GameFinished;
+    
 public:
-  Game(String file, int NumberOfSubjects);
-  int PlayerMove(String destination);
-  int ComputerMove(); // some magic should happen here
-  int play()
-}
+    Game(int NumberOfSubjects, List<AbstractSubject*> Subjects);
+    ~Game();
+    
+    int makePlayerMove(String destination);
+    int makeComputerMove();
+    
+    String getCurrentRegionName() const;
+    String getStartRegionName() const;
+    String getFinalRegionName() const;
+    List<String> getNeighborRegionNames() const;
+    List<String> getVisitedRegionNames() const;
+    int getMistakesCount() const;
+    int getTurn() const;
+    bool isGameFinished() const;
+    int getWinner() const;
+    
+    List<AbstractSubject*> getAllRegions() const;
+    void reset();
+    
+private:
+    int* calculateDistances();
+};
