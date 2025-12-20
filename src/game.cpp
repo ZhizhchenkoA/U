@@ -11,16 +11,17 @@ int* Game::calculateDistances() {
   
   // Initialize arrays
   for (int i = 0; i < NumberOfSubjects; i++) {
-    distances[i] = -1; // -1 means unreachable
+    distances[i] = -1;
     visitedInBFS[i] = false;
   }
   
   // Find index of final position
   int finalIndex = -1;
-  for (int i = 0; i < NumberOfSubjects; i++) {
+  bool foundFinal = false;
+  for (int i = 0; i < NumberOfSubjects && !foundFinal; i++) {
     if (Subjects.Get(i) == FinalPosition) {
       finalIndex = i;
-      break;
+      foundFinal = true;
     }
   }
   
@@ -40,54 +41,56 @@ int* Game::calculateDistances() {
     AbstractSubject* current = queue.remove();
     int currentIndex = -1;
     
-    // index of current vertex
-    for (int i = 0; i < NumberOfSubjects; i++) {
+    // Find index of current vertex
+    bool foundCurrent = false;
+    for (int i = 0; i < NumberOfSubjects && !foundCurrent; i++) {
       if (Subjects.Get(i) == current) {
         currentIndex = i;
-        break;
+        foundCurrent = true;
       }
     }
     
-    if (currentIndex == -1) continue;
-    
-    // Check all neighbors
-    List<AbstractSubject*> neighbors = current->get_neighbours();
-    int neighborCount = neighbors.GetSize();
-    
-    for (int i = 0; i < neighborCount; i++) {
-      AbstractSubject* neighbor = neighbors.Get(i);
-      int neighborIndex = -1;
+    if (currentIndex != -1) {
+      // Check all neighbors
+      List<AbstractSubject*> neighbors = current->get_neighbours();
+      int neighborCount = neighbors.GetSize();
       
-      // Find index of neighbor
-      for (int j = 0; j < NumberOfSubjects; j++) {
-        if (Subjects.Get(j) == neighbor) {
-          neighborIndex = j;
-          break;
+      for (int i = 0; i < neighborCount; i++) {
+        AbstractSubject* neighbor = neighbors.Get(i);
+        int neighborIndex = -1;
+        
+        // Find index of neighbor
+        bool foundNeighbor = false;
+        for (int j = 0; j < NumberOfSubjects && !foundNeighbor; j++) {
+          if (Subjects.Get(j) == neighbor) {
+            neighborIndex = j;
+            foundNeighbor = true;
+          }
         }
-      }
-      
-      if (neighborIndex == -1) continue;
-      
-      // Check if this region was visited in the game
-      bool visitedInGame = false;
-      int visitedCount = Visited.GetSize();
-      for (int j = 0; j < visitedCount; j++) {
-        if (Visited.Get(j) == neighbor) {
-          visitedInGame = true;
-          break;
+        
+        if (neighborIndex != -1) {
+          // Check if this region was visited in the game
+          bool visitedInGame = false;
+          int visitedCount = Visited.GetSize();
+          
+          for (int j = 0; j < visitedCount && !visitedInGame; j++) {
+            if (Visited.Get(j) == neighbor) {
+              visitedInGame = true;
+            }
+          }
+          
+          // Also check if neighbor is marked as visited in AbstractSubject
+          if (neighbor->is_visited()) {
+            visitedInGame = true;
+          }
+          
+          // If not visited in game and not visited in BFS
+          if (!visitedInGame && !visitedInBFS[neighborIndex]) {
+            distances[neighborIndex] = distances[currentIndex] + 1;
+            visitedInBFS[neighborIndex] = true;
+            queue.add(neighbor);
+          }
         }
-      }
-      
-      // Also check if neighbor is marked as visited in AbstractSubject
-      if (neighbor->is_visited()) {
-        visitedInGame = true;
-      }
-      
-      // If not visited in game and not visited in BFS
-      if (!visitedInGame && !visitedInBFS[neighborIndex]) {
-        distances[neighborIndex] = distances[currentIndex] + 1;
-        visitedInBFS[neighborIndex] = true;
-        queue.add(neighbor);
       }
     }
   }
@@ -95,6 +98,8 @@ int* Game::calculateDistances() {
   delete[] visitedInBFS;
   return distances;
 }
+
+
 
 
 
@@ -126,12 +131,11 @@ Game::Game(int NumberOfSubjects, List<AbstractSubject*> Subjects): NumberOfSubje
 Game::~Game() {}
 
 
-// Player makes a move to destination region
-// Returns: 
-//   0 - successful move
-//   1 - player reached final region
-//  -1 - invalid move (region not found or not accessible)
-//  -2 - 3 mistakes made, player loses
+// returns
+// 0 - successful move
+// 1 - player reached final region
+// -1 - invalid move (region not found or not accessible)
+// -2 - 3 mistakes made, player loses
 
 int Game::makePlayerMove(String destination) {
   if (GameFinished || Turn != 0) return -1;
@@ -199,7 +203,7 @@ int Game::makePlayerMove(String destination) {
   // Execute move
   Position = destSubject;
   Visited.Add(Position);
-  Position->visit(); // Mark as visited in AbstractSubject
+  Position->visit(); // Mark as visited
   Turn = 1; // Computer's turn
   
   // Check for victory
@@ -213,12 +217,11 @@ int Game::makePlayerMove(String destination) {
 
 
 
-// Computer makes a move using odd-distance strategy
 // Returns:
 //   0 - successful move
 //   1 - computer reached final region
-//  -1 - computer can't move (shouldn't happen if called at right time)
-//  -2 - computer has no valid moves, loses
+//  -1 - computer shouldn't move (i hope it wouldnt happen)
+//  -2 - computer has no possible moves, loses
 int Game::makeComputerMove() {
   if (GameFinished || Turn != 1) return -1;
   
@@ -231,10 +234,11 @@ int Game::makeComputerMove() {
   
   // Find index of current position
   int currentIndex = -1;
-  for (int i = 0; i < NumberOfSubjects; i++) {
+  bool foundCurrent = false;
+  for (int i = 0; i < NumberOfSubjects && !foundCurrent; i++) {
     if (Subjects.Get(i) == Position) {
       currentIndex = i;
-      break;
+      foundCurrent = true;
     }
   }
   
@@ -242,16 +246,17 @@ int Game::makeComputerMove() {
   List<AbstractSubject*> neighbors = Position->get_neighbours();
   int neighborCount = neighbors.GetSize();
   
-  for (int i = 0; i < neighborCount; i++) {
+  bool computerWonImmediately = false;
+  for (int i = 0; i < neighborCount && !computerWonImmediately; i++) {
     AbstractSubject* neighbor = neighbors.Get(i);
     if (neighbor == FinalPosition) {
       // Check if final position is already visited
       bool wasVisited = false;
       int visitedCount = Visited.GetSize();
-      for (int j = 0; j < visitedCount; j++) {
+      
+      for (int j = 0; j < visitedCount && !wasVisited; j++) {
         if (Visited.Get(j) == FinalPosition) {
           wasVisited = true;
-          break;
         }
       }
       
@@ -266,6 +271,7 @@ int Game::makeComputerMove() {
         Position->visit();
         delete[] distances;
         GameFinished = true;
+        computerWonImmediately = true;
         return 1; // Computer wins
       }
     }
@@ -283,10 +289,9 @@ int Game::makeComputerMove() {
     // Check if region was visited
     bool wasVisited = false;
     int visitedCount = Visited.GetSize();
-    for (int j = 0; j < visitedCount; j++) {
+    for (int j = 0; j < visitedCount && !wasVisited; j++) {
       if (Visited.Get(j) == neighbor) {
         wasVisited = true;
-        break;
       }
     }
     
@@ -295,38 +300,43 @@ int Game::makeComputerMove() {
       wasVisited = true;
     }
     
-    if (wasVisited) continue;
-    
-    // Find index of neighbor
-    int neighborIndex = -1;
-    for (int j = 0; j < NumberOfSubjects; j++) {
-      if (Subjects.Get(j) == neighbor) {
-        neighborIndex = j;
-        break;
+    // Skip visited regions
+    if (!wasVisited) {
+      // Find index of neighbor
+      int neighborIndex = -1;
+      bool foundNeighbor = false;
+      for (int j = 0; j < NumberOfSubjects && !foundNeighbor; j++) {
+        if (Subjects.Get(j) == neighbor) {
+          neighborIndex = j;
+          foundNeighbor = true;
+        }
       }
-    }
-    
-    if (neighborIndex == -1) continue;
-    
-    int distance = distances[neighborIndex];
-    if (distance == -1) continue; // Unreachable
-    
-    // If distance is odd
-    if (distance % 2 == 1) {
-      if (!foundOdd) {
-        foundOdd = true;
-        bestMove = neighbor;
-        bestDistance = distance;
-      } else if (distance < bestDistance) {
-        // Choose minimal odd distance
-        bestMove = neighbor;
-        bestDistance = distance;
-      }
-    } else if (!foundOdd) {
-      // If no odd moves, choose minimal distance
-      if (bestMove == 0 || distance < bestDistance) {
-        bestMove = neighbor;
-        bestDistance = distance;
+      
+      // Process only if neighbor was found and is reachable
+      if (neighborIndex != -1) {
+        int distance = distances[neighborIndex];
+        
+        // Process only reachable neighbors
+        if (distance != -1) {
+          // If distance is odd
+          if (distance % 2 == 1) {
+            if (!foundOdd) {
+              foundOdd = true;
+              bestMove = neighbor;
+              bestDistance = distance;
+            } else if (distance < bestDistance) {
+              // Choose minimal odd distance
+              bestMove = neighbor;
+              bestDistance = distance;
+            }
+          } else if (!foundOdd) {
+            // If no odd moves, choose minimal distance
+            if (bestMove == 0 || distance < bestDistance) {
+              bestMove = neighbor;
+              bestDistance = distance;
+            }
+          }
+        }
       }
     }
   }
@@ -354,6 +364,9 @@ int Game::makeComputerMove() {
   delete[] distances;
   return 0;
 }
+
+
+
 
 // Getter methods for UI
 
