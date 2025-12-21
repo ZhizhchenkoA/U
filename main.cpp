@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 
     // Игровое окно
     presenter.getPlayerWindow()->setWindowTitle("Игровое окно");
-    presenter.getPlayerWindow()->resize(600, 400);
+    presenter.getPlayerWindow()->resize(1000, 800);
 
     // Показываем оба окна
     mapWindow.show();

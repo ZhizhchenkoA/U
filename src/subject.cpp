@@ -137,30 +137,27 @@ void Map::get_from_JSON(String subject_borders_file,
         AbstractSubject* subj =
             find_subject_by_name(subject_list, subj_name);
 
-        if (!subj) {
-            ++it;
-            continue;
+        if (subj) {
+            json neigh_array = it.value();
+            json::iterator neigh_it = neigh_array.begin();
+
+            while (neigh_it != neigh_array.end()) {
+
+                const char* neigh_cstr =
+                    neigh_it->get_ref<const json::string_t&>().c_str();
+
+                String neigh_name(neigh_cstr);
+                AbstractSubject* neigh_subj =
+                    find_subject_by_name(subject_list, neigh_name);
+
+                if (neigh_subj)
+                    subj->add_neighbour(neigh_subj);
+
+                ++neigh_it;
+            }
         }
-
-        json neigh_array = it.value();
-        json::iterator neigh_it = neigh_array.begin();
-
-        while (neigh_it != neigh_array.end()) {
-
-            const char* neigh_cstr =
-                neigh_it->get_ref<const json::string_t&>().c_str();
-
-            String neigh_name(neigh_cstr);
-            AbstractSubject* neigh_subj =
-                find_subject_by_name(subject_list, neigh_name);
-
-            if (neigh_subj)
-                subj->add_neighbour(neigh_subj);
-
-            ++neigh_it;
-        }
-
         ++it;
+        
     }
 }
 

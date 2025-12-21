@@ -25,7 +25,6 @@ double MapWidget::normalizeLongitude360(double lon) {
 
 void MapWidget::rebuildCache()
 {
-    // Очистка кэша
     QMap<AbstractSubject*, CachedSubject*>::iterator itc = cache.begin();
     while (itc != cache.end()) {
         delete itc.value();
@@ -66,13 +65,11 @@ void MapWidget::rebuildCache()
     if (longitudes.isEmpty() || minY >= maxY)
         return;
 
-    // Шаг 2: Найдём min и max для долготы
     double minX = *std::min_element(longitudes.begin(), longitudes.end());
     double maxX = *std::max_element(longitudes.begin(), longitudes.end());
 
-    // Шаг 3: Проверяем, есть ли wrap-around (разрыв больше 180 градусов)
+
     if (maxX - minX > 180) {
-        // Тогда сдвигаем все долготы > 180 на -360
         for (int i = 0; i < longitudes.size(); ++i) {
             if (longitudes[i] > 180)
                 longitudes[i] -= 360;
@@ -97,7 +94,6 @@ void MapWidget::rebuildCache()
     double offsetX = (widgetWidth  - mapWidth  * scale) / 2.0;
     double offsetY = (widgetHeight - topMargin - mapHeight * scale) / 2.0;
 
-    // Шаг 4: Строим кеш с учетом wrap-around
     sit = subjects.iter();
 
     while (!sit.isEnd()) {
@@ -119,7 +115,7 @@ void MapWidget::rebuildCache()
 
                 double normLon = normalizeLongitude360(c.x);
                 if (maxX - minX > 180 && normLon > 180)
-                    normLon -= 360;  // повторяем сдвиг для текущей точки
+                    normLon -= 360; 
 
                 double nx = (normLon - minX) * scale + offsetX;
                 double ny = (maxY - c.y) * scale + offsetY;

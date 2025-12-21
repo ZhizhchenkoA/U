@@ -29,6 +29,7 @@ public:
     void add_coord(Coordinates);
     void add_polygon();
     void visit(){ is_visited_ = true; }
+    void unvisit() { is_visited_ = false; }
     List<String>& get_names(){ return names; }
     List<AbstractSubject*>& get_neighbours(){ return neighbours;}
     List<Polygon*>& get_border(){ return border; };
