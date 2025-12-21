@@ -9,21 +9,27 @@ namespace Ui {
     class PlayerWindow;
 }
 
+
+
 class PlayerWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    explicit PlayerWindow(QWidget *parent = nullptr);
+    explicit PlayerWindow(Map* map, QWidget *parent = nullptr);
+    void addMap(Map* m);
     ~PlayerWindow();
-
+    void initGame();
+    void updateUI();
 private Q_SLOTS:
     void on_makeMoveButton_clicked();
     void on_regionInput_returnPressed();
     void onComputerMove();
 
+signals:
+    void regionVisited(const QString& regionName);
+    
 private:
-    void initGame();
-    void updateUI();
+    
     void handleGameResult(int result);
     QStringList getAllRegionNames() const;
     void processPlayerMove(const QString& regionName);

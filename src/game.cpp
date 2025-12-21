@@ -104,7 +104,7 @@ int* Game::calculateDistances() {
 
 
 Game::Game(int NumberOfSubjects, List<AbstractSubject*>& Subjects) : 
-  NumberOfSubjects(NumberOfSubjects), Subjects(Subjects), StartPosition(0), Position(0), FinalPosition(0), Turn(0), Mistakes(0), GameFinished(false) {
+NumberOfSubjects(NumberOfSubjects), Subjects(Subjects), StartPosition(0), Position(0), FinalPosition(0), Turn(0), Mistakes(0), GameFinished(false) {
   srand(time(0));
   
   if (NumberOfSubjects <= 0 || Subjects.size() == 0) {
@@ -158,7 +158,7 @@ int Game::makePlayerMove(String destination) {
   }
   
   if (destSubject == 0) {
-    Mistakes++;
+    // Mistakes++;
     if (Mistakes >= 3) {
       GameFinished = true;
       return -2; // Player loses due to 3 mistakes

@@ -53,9 +53,9 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 # Для правильной работы UIC
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-    QT_NO_KEYWORDS
-)
+# target_compile_definitions(${PROJECT_NAME} PRIVATE
+#    QT_NO_KEYWORDS
+# )
 
 file(COPY
     ${CMAKE_CURRENT_SOURCE_DIR}/data

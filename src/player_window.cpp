@@ -6,14 +6,14 @@
 #include <QFocusEvent>
 
 
-PlayerWindow::PlayerWindow(QWidget *parent)
+PlayerWindow::PlayerWindow(Map *map, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::PlayerWindow)
     , game(nullptr)
-    , map(nullptr)
+    , map(map)
     , computerTimer(new QTimer(this))
     , isComputerMoving(false)
-    , jsonFilePathRegions("data/new_ruusia (1).json")
+    , jsonFilePathRegions("data/new_russia (1).json")
     , jsonFilePathNeighbours("russia_neighbours.json")
 {
     ui->setupUi(this);
@@ -41,6 +41,10 @@ PlayerWindow::PlayerWindow(QWidget *parent)
     updateUI();
 }
 
+void PlayerWindow::addMap(Map *m)
+{
+    map = m;
+}
 
 PlayerWindow::~PlayerWindow()
 {
@@ -53,8 +57,8 @@ PlayerWindow::~PlayerWindow()
 void PlayerWindow::initGame()
 {
     // map creation
-    map = new Map();
-    map->get_from_JSON(jsonFilePathRegions, jsonFilePathNeighbours);
+    //map = new Map();
+    //map->get_from_JSON(jsonFilePathRegions, jsonFilePathNeighbours);
     
 
     List<AbstractSubject*>& subjects = map->get_subjects();
@@ -160,10 +164,10 @@ void PlayerWindow::on_makeMoveButton_clicked()
 void PlayerWindow::on_regionInput_returnPressed()
 {
     QString input = ui->regionInput->text().trimmed();
-    if (input.isEmpty()) {
-        QMessageBox::warning(this, "Внимание", "Введите название региона!");
-        return;
-    }
+    //if (input.isEmpty()) {
+    //    QMessageBox::warning(this, "Внимание", "Введите название региона!");
+    //    return;
+    //}
     
     processPlayerMove(input);
 }
@@ -183,6 +187,7 @@ void PlayerWindow::processPlayerMove(const QString& regionName)
     case 0: // good move
         ui->regionInput->clear();
         updateUI();
+        emit regionVisited(QString::fromStdString(game->getCurrentRegionName().c_str()));
 
         if (!game->isGameFinished()) {
             isComputerMoving = true;
@@ -230,10 +235,12 @@ void PlayerWindow::onComputerMove()
     case 0: // succesful move
         ui->gameInfoText->append("🤖 Компьютер сделал ход");
         updateUI();
+        emit regionVisited(QString::fromStdString(game->getCurrentRegionName().c_str()));
         break;
         
     case 1: // comp won
         updateUI();
+        // emit regionVisited(QString::fromStdString(game->getCurrentRegionName().c_str()));
         handleGameResult(1);
         break;
         

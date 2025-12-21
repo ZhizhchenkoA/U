@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MainWindow</class>
- <widget class="QMainWindow" name="MainWindow">
+ <class>PlayerWindow</class>
+ <widget class="QMainWindow" name="PlayerWindow">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -11,10 +11,10 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Турнир Угольникова</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QLineEdit" name="lineEdit">
+   <widget class="QLineEdit" name="regionInput">
     <property name="geometry">
      <rect>
       <x>30</x>
@@ -23,11 +23,11 @@
       <height>61</height>
      </rect>
     </property>
-    <property name="text">
-     <string>Enter your subject</string>
+    <property name="placeholderText">
+     <string>Введите название региона</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label">
+   <widget class="QLabel" name="currentRegionLabel">
     <property name="geometry">
      <rect>
       <x>50</x>
@@ -37,10 +37,10 @@
      </rect>
     </property>
     <property name="text">
-     <string>Current subject</string>
+     <string>Текущий регион</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="pushButton">
+   <widget class="QPushButton" name="makeMoveButton">
     <property name="geometry">
      <rect>
       <x>300</x>
@@ -50,10 +50,10 @@
      </rect>
     </property>
     <property name="text">
-     <string>MakeMove</string>
+     <string>Сделать ход</string>
     </property>
    </widget>
-   <widget class="QLabel" name="label_2">
+   <widget class="QLabel" name="finalRegionLabel">
     <property name="geometry">
      <rect>
       <x>500</x>
@@ -63,10 +63,10 @@
      </rect>
     </property>
     <property name="text">
-     <string>Final subject</string>
+     <string>Конечный регион</string>
     </property>
    </widget>
-   <widget class="QTextEdit" name="textEdit">
+   <widget class="QTextEdit" name="gameInfoText">
     <property name="geometry">
      <rect>
       <x>30</x>
@@ -74,6 +74,9 @@
       <width>401</width>
       <height>301</height>
      </rect>
+    </property>
+    <property name="readOnly">
+     <bool>true</bool>
     </property>
    </widget>
   </widget>

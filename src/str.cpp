@@ -3,6 +3,7 @@
 void String::copy_from(const char* str) {
     if (!str) {
         length = 0;
+        delete[] data;
         data = nullptr;
         return;
     }
@@ -15,28 +16,24 @@ void String::copy_from(const char* str) {
     }
     
     length = len;
-    data = new char[length];
+    delete[] data;
+    data = new char[length + 1];
     
-    char* dest = data;
-    const char* src = str;
     for (int i = 0; i < length; i++) {
-        *dest = *src;
-        dest++;
-        src++;
+        data[i] = str[i];
     }
+    data[length] = '\0';
 }
 
 void String::copy_from(const String& other) {
     length = other.length;
-    data = new char[length];
+    delete[] data;
+    data = new char[length + 1];
     
-    char* dest = data;
-    const char* src = other.data;
     for (int i = 0; i < length; i++) {
-        *dest = *src;
-        dest++;
-        src++;
+        data[i] = other.data[i];
     }
+    data[length] = '\0'; 
 }
 
 String::String() : data(nullptr), length(0) {
