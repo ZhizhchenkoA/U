@@ -214,7 +214,7 @@ void PlayerWindow::processPlayerMove(const QString& regionName)
     case -2: // 3 mistakes
         ui->regionInput->clear();
         updateUI();
-        handleGameResult(1); // comp won
+        handleGameResult(3); // comp won
         break;
     }
 }
@@ -233,7 +233,7 @@ void PlayerWindow::onComputerMove()
     
     switch (result) {
     case 0: // succesful move
-        ui->gameInfoText->append("🤖 Компьютер сделал ход");
+        ui->gameInfoText->append("Компьютер сделал ход");
         updateUI();
         emit regionVisited(QString::fromStdString(game->getCurrentRegionName().c_str()));
         break;
@@ -264,12 +264,19 @@ void PlayerWindow::handleGameResult(int result)
     
     QString title, message;
     
-    if (result == 0) {
-        title = "Поздравляем!";
-        message = "Вы достигли конечного региона и победили!";
-    } else {
-        title = "Игра окончена";
-        message = "Компьютер победил. Попробуйте ещё раз!";
+    switch (result) {
+    case 0: // player reached final region
+        title = "Вы победили!"
+        message = "Поздравляем, вы дошли до конечного региона!"
+    case 3: // player made 3 mistakes
+        title = "Вы проиграли!"
+        message = "Компьютер победил, вы совершили три ошибки."
+    case 1: //comp reached final region
+        title = "Вы проиграли!"
+        message = "Компьютер победил, добравшись до конечного региона!"
+    case -2: //comp has no moves
+        title = "Вы победили!"
+        message = "Поздравляем, у компьютера не осталось ходов!"
     }
     
     QMessageBox::information(this, title, message);
