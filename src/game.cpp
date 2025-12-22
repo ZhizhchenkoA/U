@@ -222,7 +222,7 @@ int Game::makePlayerMove(String destination) {
 //   1 - computer reached final region
 //  -1 - computer shouldn't move (i hope it wouldnt happen)
 //  -2 - computer has no possible moves, loses
-int Game::makeComputerMove() {
+iint Game::makeComputerMove() {
   if (GameFinished || Turn != 1) return -1;
   
   // Calculate current distances
@@ -312,40 +312,50 @@ int Game::makeComputerMove() {
         }
       }
       
-      // Process only if neighbor was found and is reachable
+      // Process only if neighbor was found
       if (neighborIndex != -1) {
         int distance = distances[neighborIndex];
         
-        // Process only reachable neighbors
-        if (distance != -1) {
-          // If distance is odd
-          if (distance % 2 == 1) {
-            if (!foundOdd) {
-              foundOdd = true;
-              bestMove = neighbor;
-              bestDistance = distance;
-            } else if (distance < bestDistance) {
-              // Choose minimal odd distance
-              bestMove = neighbor;
-              bestDistance = distance;
-            }
-          } else if (!foundOdd) {
-            // If no odd moves, choose minimal distance
-            if (bestMove == 0 || distance < bestDistance) {
-              bestMove = neighbor;
-              bestDistance = distance;
-            }
+        // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Даже если distance == -1 (недостижимо),
+        // это всё равно допустимый ход, если регион не посещён!
+        
+        // Если расстояние нечётное и достижимо
+        if (distance != -1 && distance % 2 == 1) {
+          if (!foundOdd) {
+            foundOdd = true;
+            bestMove = neighbor;
+            bestDistance = distance;
+          } else if (distance < bestDistance) {
+            // Choose minimal odd distance
+            bestMove = neighbor;
+            bestDistance = distance;
+          }
+        } else if (!foundOdd) {
+          // Если нечётных нет, выбираем минимальное расстояние
+          // (включая distance == -1, но тогда сравнивать distance < bestDistance не имеет смысла)
+          if (bestMove == 0) {
+            bestMove = neighbor;
+            bestDistance = distance;
+          } else if (distance != -1 && (bestDistance == -1 || distance < bestDistance)) {
+            // Предпочитаем достижимые регионы недостижимым
+            bestMove = neighbor;
+            bestDistance = distance;
+          } else if (distance == -1 && bestDistance == -1) {
+            // Если оба недостижимы, выбираем первого (или можно любого)
+            // Можно добавить эвристику: выбрать того соседа, у которого больше своих соседей
+            bestMove = neighbor;
+            bestDistance = distance;
           }
         }
       }
     }
   }
   
-  // If no valid moves
+  // Если нет допустимых ходов
   if (bestMove == 0) {
     delete[] distances;
     GameFinished = true;
-    return -2; // Computer loses
+    return -2; // Computer loses - действительно нет ходов
   }
   
   // Execute best move

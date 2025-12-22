@@ -263,20 +263,21 @@ void PlayerWindow::handleGameResult(int result)
     emit gameFinished();
     
     QString title, message;
-    
+    title = "?";
+    message = "???";
     switch (result) {
     case 0: // player reached final region
-        title = "Вы победили!"
-        message = "Поздравляем, вы дошли до конечного региона!"
+        title = "Вы победили!";
+        message = "Поздравляем, вы дошли до конечного региона!";
     case 3: // player made 3 mistakes
-        title = "Вы проиграли!"
-        message = "Компьютер победил, вы совершили три ошибки."
+        title = "Вы проиграли!";
+        message = "Компьютер победил, вы совершили три ошибки.";
     case 1: //comp reached final region
-        title = "Вы проиграли!"
-        message = "Компьютер победил, добравшись до конечного региона!"
+        title = "Вы проиграли!";
+        message = "Компьютер победил, добравшись до конечного региона!";
     case -2: //comp has no moves
-        title = "Вы победили!"
-        message = "Поздравляем, у компьютера не осталось ходов!"
+        title = "Вы победили!";
+        message = "Поздравляем, у компьютера не осталось ходов!";
     }
     
     QMessageBox::information(this, title, message);
