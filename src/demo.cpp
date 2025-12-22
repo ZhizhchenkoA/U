@@ -130,7 +130,12 @@ void MapWidget::rebuildCache()
     }
 }
 
-
+void MapWidget::clearCache()
+{
+    qDeleteAll(cache);
+    cache.clear();
+    update();
+}
 
 void MapWidget::resizeEvent(QResizeEvent* event)
 {

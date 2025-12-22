@@ -27,7 +27,7 @@ private Q_SLOTS:
 
 signals:
     void regionVisited(const QString& regionName);
-    
+    void gameFinished();
 private:
     
     void handleGameResult(int result);

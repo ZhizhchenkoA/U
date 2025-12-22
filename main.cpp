@@ -9,17 +9,16 @@ int main(int argc, char *argv[])
 
     Presenter presenter;
 
-    // Окно с картой
+
     QMainWindow mapWindow;
     mapWindow.setCentralWidget(presenter.getMapWidget());
     mapWindow.setWindowTitle("Карта России");
     mapWindow.resize(800, 600);
 
-    // Игровое окно
     presenter.getPlayerWindow()->setWindowTitle("Игровое окно");
     presenter.getPlayerWindow()->resize(1000, 800);
 
-    // Показываем оба окна
+
     mapWindow.show();
     presenter.getPlayerWindow()->show();
 

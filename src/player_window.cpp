@@ -260,6 +260,8 @@ void PlayerWindow::onComputerMove()
 
 void PlayerWindow::handleGameResult(int result)
 {
+    emit gameFinished();
+    
     QString title, message;
     
     if (result == 0) {

@@ -15,6 +15,9 @@ Presenter::Presenter(QObject* parent)
 
    connect(playerWindow, &PlayerWindow::regionVisited,
        this, &Presenter::onRegionVisited);
+
+    connect(playerWindow, &PlayerWindow::gameFinished,
+        this, &Presenter::onGameFinished);
 }
 
 Presenter::~Presenter()
@@ -38,4 +41,16 @@ void Presenter::onRegionVisited(const QString& regionName)
     Q_UNUSED(regionName);
     mapWidget->rebuildCache();
     mapWidget->update();
+}
+
+void Presenter::onGameFinished()
+{
+
+    List<AbstractSubject*>& subjects = map.get_subjects();
+    for (int i = 0; i < subjects.size(); ++i) {
+        subjects.Get(i)->unvisit();
+    }
+
+    mapWidget->clearCache();
+    mapWidget->rebuildCache();
 }

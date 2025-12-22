@@ -27,7 +27,7 @@ public:
     ~MapWidget();
 
     void rebuildCache();
-
+    void clearCache();
 protected:
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;

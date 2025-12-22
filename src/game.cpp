@@ -470,9 +470,10 @@ void Game::reset() {
   Visited.Add(Position);
   
   // Reset all subjects' visited flags
-  for (int i = 0; i < NumberOfSubjects; i++) {
-    // We need unvisit method
-  }
+  
+  List<AbstractSubject*>::Iterator<AbstractSubject*> iter = Subjects.iter();
+  while (!iter.isEnd())
+    iter.next()->unvisit();
   
   // Mark start position as visited
   Position->visit();

@@ -17,7 +17,8 @@ public:
 
 private Q_SLOTS:
     void onRegionVisited(const QString& regionName);
-
+    void onGameFinished(); 
+    
 private:
     Map map;
     MapWidget* mapWidget;
