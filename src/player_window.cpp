@@ -233,7 +233,7 @@ void PlayerWindow::onComputerMove()
     
     switch (result) {
     case 0: // succesful move
-        ui->gameInfoText->append("🤖 Компьютер сделал ход");
+        ui->gameInfoText->append("Компьютер сделал ход");
         updateUI();
         emit regionVisited(QString::fromStdString(game->getCurrentRegionName().c_str()));
         break;
