@@ -263,7 +263,8 @@ void PlayerWindow::handleGameResult(int result)
     emit gameFinished();
     
     QString title, message;
-    
+    title = "?";
+    message = "???";
     switch (result) {
     case 0: // player reached final region
         title = "Вы победили!";
