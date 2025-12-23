@@ -109,7 +109,7 @@ template <class T>
 inline T &List<T>::Get(int index)
 {
     if (index < 0 || index >= size_) 
-        throw Error();
+        throw WrongIndexError();
     list_node<T>* current = head;
     for (int i = 0; i < index; ++i) {
         current = current->next;
@@ -121,7 +121,7 @@ template <class T>
 inline const T &List<T>::Get(int index) const
 {
     if (index < 0 || index >= size_) 
-        throw Error();
+        throw WrongIndexError();
     list_node<T>* current = head;
     for (int i = 0; i < index; ++i) {
         current = current->next;

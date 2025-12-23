@@ -222,7 +222,7 @@ int Game::makePlayerMove(String destination) {
 //   1 - computer reached final region
 //  -1 - computer shouldn't move (i hope it wouldnt happen)
 //  -2 - computer has no possible moves, loses
-iint Game::makeComputerMove() {
+int Game::makeComputerMove() {
   if (GameFinished || Turn != 1) return -1;
   
   // Calculate current distances

@@ -246,7 +246,7 @@ void PlayerWindow::onComputerMove()
         
     case -2: // no moves
         updateUI();
-        handleGameResult(0);
+        handleGameResult(-2);
         break;
     }
     
@@ -269,15 +269,19 @@ void PlayerWindow::handleGameResult(int result)
     case 0: // player reached final region
         title = "Вы победили!";
         message = "Поздравляем, вы дошли до конечного региона!";
+        break;
     case 3: // player made 3 mistakes
         title = "Вы проиграли!";
         message = "Компьютер победил, вы совершили три ошибки.";
+        break;
     case 1: //comp reached final region
         title = "Вы проиграли!";
         message = "Компьютер победил, добравшись до конечного региона!";
+        break;
     case -2: //comp has no moves
         title = "Вы победили!";
         message = "Поздравляем, у компьютера не осталось ходов!";
+        break;
     }
     
     QMessageBox::information(this, title, message);

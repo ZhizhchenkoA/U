@@ -26,14 +26,14 @@ file(GLOB UI_FILES
     "ui/*.ui"
 )
 
-# Создать исполняемый файл
+
 add_executable(${PROJECT_NAME}
     ${SOURCES}
     ${HEADERS}
     ${UI_FILES}
 )
 
-# Установить свойства цели для UIC
+
 set_target_properties(${PROJECT_NAME} PROPERTIES
     AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/ui"
 )
@@ -45,17 +45,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/external    
     ${CMAKE_CURRENT_BINARY_DIR}              
 )
-
-# Связать с библиотеками Qt
 target_link_libraries(${PROJECT_NAME}
     Qt6::Core
     Qt6::Widgets
 )
-
-# Для правильной работы UIC
-# target_compile_definitions(${PROJECT_NAME} PRIVATE
-#    QT_NO_KEYWORDS
-# )
 
 file(COPY
     ${CMAKE_CURRENT_SOURCE_DIR}/data
