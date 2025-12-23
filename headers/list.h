@@ -67,7 +67,7 @@ inline void List<T>::push(T value)
     new_elem->next = head;
     head = new_elem;
     if (size_ == 0) {
-        tail = new_elem; // если список был пуст, tail указывает на новый элемент
+        tail = new_elem;
     }
     size_++;
 }
@@ -97,14 +97,13 @@ inline T List<T>::pop()
     head = head->next;
     size_--;
     if (size_ == 0) {
-        tail = nullptr;  // если список стал пустым, сбросить tail
+        tail = nullptr; 
     }
     delete tmp;    
     return return_value;
 }
 
-// Остальные методы не требуют изменений для работы с tail
-// (но если будут операции удаления из середины, нужно будет следить за tail)
+
 
 template <class T>
 inline T &List<T>::Get(int index)
