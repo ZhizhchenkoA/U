@@ -1,541 +1,305 @@
 #include "game.h"
-#include "queue.h"
+#include <queue>
+#include <algorithm>    // std::find
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
 
-// method to calculate distances from all vertices to final vertex using BFS
-int* Game::calculateDistances() {
-  int* distances = new int[NumberOfSubjects];
-  bool* visitedInBFS = new bool[NumberOfSubjects];
-  
-  // Initialize arrays
-  for (int i = 0; i < NumberOfSubjects; i++) {
-    distances[i] = -1;
-    visitedInBFS[i] = false;
-  }
-  
-  // Find index of final position
-  int finalIndex = -1;
-  bool foundFinal = false;
-  for (int i = 0; i < NumberOfSubjects && !foundFinal; i++) {
-    if (Subjects.Get(i) == FinalPosition) {
-      finalIndex = i;
-      foundFinal = true;
+// Вспомогательная: поиск индекса элемента в std::list
+static int index_of_in_list(const std::list<AbstractSubject*>& lst, AbstractSubject* ptr) {
+    int idx = 0;
+    for (auto* item : lst) {
+        if (item == ptr) return idx;
+        ++idx;
     }
-  }
-  
-  if (finalIndex == -1) {
-    delete[] distances;
-    delete[] visitedInBFS;
-    return 0;
-  }
-  
-  // Use BFS from final vertex
-  Queue queue;
-  distances[finalIndex] = 0;
-  visitedInBFS[finalIndex] = true;
-  queue.add(FinalPosition);
-  
-  while (!queue.isEmpty()) {
-    AbstractSubject* current = queue.remove();
-    int currentIndex = -1;
+    return -1;
+}
+
+// Вспомогательная: проверка, посещён ли регион
+static bool is_visited_in_game(const std::vector<AbstractSubject*>& visited, 
+                               AbstractSubject* subject) {
+    return std::find(visited.begin(), visited.end(), subject) != visited.end();
+}
+
+// BFS для расчёта дистанций
+std::vector<int> Game::calculateDistances() {
+    std::vector<int> distances(NumberOfSubjects, -1);
+    std::vector<bool> visitedInBFS(NumberOfSubjects, false);
     
-    // Find index of current vertex
-    bool foundCurrent = false;
-    for (int i = 0; i < NumberOfSubjects && !foundCurrent; i++) {
-      if (Subjects.Get(i) == current) {
-        currentIndex = i;
-        foundCurrent = true;
-      }
-    }
+    int finalIndex = index_of_in_list(Subjects, FinalPosition);
+    if (finalIndex == -1) return distances;
     
-    if (currentIndex != -1) {
-      // Check all neighbors
-      List<AbstractSubject*>& neighbors = current->get_neighbours();
-      int neighborCount = neighbors.size();
-      
-      for (int i = 0; i < neighborCount; i++) {
-        AbstractSubject* neighbor = neighbors.Get(i);
-        int neighborIndex = -1;
+    // STL queue: front() + pop() вместо remove()
+    std::queue<AbstractSubject*> q;
+    distances[finalIndex] = 0;
+    visitedInBFS[finalIndex] = true;
+    q.push(FinalPosition);
+    
+    while (!q.empty()) {
+        AbstractSubject* current = q.front();  // ⚠️ сначала получаем
+        q.pop();                                // ⚠️ потом удаляем
         
-        // Find index of neighbor
-        bool foundNeighbor = false;
-        for (int j = 0; j < NumberOfSubjects && !foundNeighbor; j++) {
-          if (Subjects.Get(j) == neighbor) {
-            neighborIndex = j;
-            foundNeighbor = true;
-          }
-        }
+        int currentIndex = index_of_in_list(Subjects, current);
+        if (currentIndex == -1) continue;
         
-        if (neighborIndex != -1) {
-          // Check if this region was visited in the game
-          bool visitedInGame = false;
-          int visitedCount = Visited.size();
-          
-          for (int j = 0; j < visitedCount && !visitedInGame; j++) {
-            if (Visited.Get(j) == neighbor) {
-              visitedInGame = true;
+        for (AbstractSubject* neighbor : current->get_neighbours()) {
+            int neighborIndex = index_of_in_list(Subjects, neighbor);
+            if (neighborIndex == -1) continue;
+            
+            bool visitedInGame = is_visited_in_game(Visited, neighbor) || neighbor->is_visited();
+            
+            if (!visitedInGame && !visitedInBFS[neighborIndex]) {
+                distances[neighborIndex] = distances[currentIndex] + 1;
+                visitedInBFS[neighborIndex] = true;
+                q.push(neighbor);
             }
-          }
-          
-          // Also check if neighbor is marked as visited in AbstractSubject
-          if (neighbor->is_visited()) {
-            visitedInGame = true;
-          }
-          
-          // If not visited in game and not visited in BFS
-          if (!visitedInGame && !visitedInBFS[neighborIndex]) {
-            distances[neighborIndex] = distances[currentIndex] + 1;
-            visitedInBFS[neighborIndex] = true;
-            queue.add(neighbor);
-          }
         }
-      }
     }
-  }
-  
-  delete[] visitedInBFS;
-  return distances;
-}
-
-
-
-
-
-Game::Game(int NumberOfSubjects, List<AbstractSubject*>& Subjects): NumberOfSubjects(NumberOfSubjects), Subjects(Subjects), StartPosition(0), Position(0), FinalPosition(0), Turn(0), Mistakes(0), GameFinished(false) {
-  srand(time(0));
-  
-  if (NumberOfSubjects <= 0 || Subjects.size() == 0) {
-    return;
-  }
-  
-  int startIndex = rand() % NumberOfSubjects;
-  StartPosition = Subjects.Get(startIndex);
-  Position = StartPosition;
-  Visited.Add(Position);
-  
-  int finalIndex;
-  do
-    finalIndex = rand() % NumberOfSubjects;
-  while (finalIndex == startIndex);
-  FinalPosition = Subjects.Get(finalIndex);
-  
-  StartPosition->visit();
-  
-  Turn = 0; // Player moves first
-}
-
-
-
-Game::~Game() {}
-
-
-// returns
-// 0 - successful move
-// 1 - player reached final region
-// -1 - invalid move (region not found or not accessible)
-// -2 - 3 mistakes made, player loses
-
-int Game::makePlayerMove(String destination) {
-  if (GameFinished || Turn != 0) return -1;
-  
-  // Find subject with given name
-  AbstractSubject* destSubject = 0;
-  for (int i = 0; i < Subjects.size(); i++) {
-    AbstractSubject* subject = Subjects.Get(i);
-    List<String>& names = subject->get_names();
     
-    // Check all names for this region (some regions may have multiple names)
-    for (int j = 0; j < names.size(); j++) {
-      if (names.Get(j) == destination) {
-        destSubject = subject;
-        break;
-      }
-    }
-    if (destSubject) break;
-  }
-  
-  if (destSubject == 0) {
-    Mistakes++;
-    if (Mistakes >= 3) {
-      GameFinished = true;
-      return -2; // Player loses due to 3 mistakes
-    }
-    return -1; // Region not found
-  }
-  
-  // Check if region is a neighbor
-  bool isNeighbor = false;
-  List<AbstractSubject*>& neighbors = Position->get_neighbours();
-  int neighborCount = neighbors.size();
-  
-  for (int i = 0; i < neighborCount; i++) {
-    if (neighbors.Get(i) == destSubject) {
-      isNeighbor = true;
-      break;
-    }
-  }
-  
-  bool wasVisited = false;
-  int visitedCount = Visited.size();
-  for (int i = 0; i < visitedCount; i++) {
-    if (Visited.Get(i) == destSubject) {
-      wasVisited = true;
-      break;
-    }
-  }
-  
-
-  if (destSubject->is_visited()) {
-    wasVisited = true;
-  }
-  
-  if (!isNeighbor || wasVisited) {
-    Mistakes++;
-    if (Mistakes >= 3) {
-      GameFinished = true;
-      return -2;
-    }
-    return -1; // Incorrecr move
-  }
-  
-  // Execute move
-  Position = destSubject;
-  Visited.Add(Position);
-  Position->visit(); // Mark as visited
-  Turn = 1; // Computer's turn
-  
-  // Check for victory
-  if (Position == FinalPosition) {
-    GameFinished = true;
-    return 1; // Player reached final region
-  }
-  
-  return 0; // Successful move
+    return distances;  // std::vector управляет памятью автоматически
 }
 
+Game::Game(int numberOfSubjects, std::list<AbstractSubject*>& subjects)
+    : NumberOfSubjects(numberOfSubjects), 
+      Subjects(subjects), 
+      StartPosition(nullptr), 
+      Position(nullptr), 
+      FinalPosition(nullptr), 
+      Turn(0), 
+      Mistakes(0), 
+      GameFinished(false)
+{
+    srand(static_cast<unsigned>(time(nullptr)));
+    
+    if (NumberOfSubjects <= 0 || Subjects.empty()) return;
+    
+    // Для доступа по индексу копируем list в vector (единоразово)
+    std::vector<AbstractSubject*> subjects_vec(Subjects.begin(), Subjects.end());
+    
+    int startIndex = rand() % NumberOfSubjects;
+    StartPosition = subjects_vec[startIndex];
+    Position = StartPosition;
+    Visited.push_back(Position);  // push_back для std::vector
+    
+    int finalIndex;
+    do {
+        finalIndex = rand() % NumberOfSubjects;
+    } while (finalIndex == startIndex);
+    FinalPosition = subjects_vec[finalIndex];
+    
+    StartPosition->visit();
+    Turn = 0;
+}
 
+Game::~Game() = default;
 
-// Returns:
-//   0 - successful move
-//   1 - computer reached final region
-//  -1 - computer shouldn't move (i hope it wouldnt happen)
-//  -2 - computer has no possible moves, loses
-int Game::makeComputerMove() {
-  if (GameFinished || Turn != 1) return -1;
-  
-  // Calculate current distances
-  int* distances = calculateDistances();
-  if (distances == 0) {
-    GameFinished = true;
-    return -2;
-  }
-  
-  // Find index of current position
-  int currentIndex = -1;
-  bool foundCurrent = false;
-  for (int i = 0; i < NumberOfSubjects && !foundCurrent; i++) {
-    if (Subjects.Get(i) == Position) {
-      currentIndex = i;
-      foundCurrent = true;
-    }
-  }
-  
-  // Check if computer can win immediately
-  List<AbstractSubject*>& neighbors = Position->get_neighbours();
-  int neighborCount = neighbors.size();
-  
-  bool computerWonImmediately = false;
-  for (int i = 0; i < neighborCount && !computerWonImmediately; i++) {
-    AbstractSubject* neighbor = neighbors.Get(i);
-    if (neighbor == FinalPosition) {
-      // Check if final position is already visited
-      bool wasVisited = false;
-      int visitedCount = Visited.size();
-      
-      for (int j = 0; j < visitedCount && !wasVisited; j++) {
-        if (Visited.Get(j) == FinalPosition) {
-          wasVisited = true;
+int Game::makePlayerMove(const std::string& destination) {
+    if (GameFinished || Turn != 0) return -1;
+    
+    // Поиск региона по имени
+    AbstractSubject* destSubject = nullptr;
+    for (AbstractSubject* subject : Subjects) {
+        const auto& names = subject->get_names();
+        if (std::find(names.begin(), names.end(), destination) != names.end()) {
+            destSubject = subject;
+            break;
         }
-      }
-      
-      // Also check AbstractSubject visited flag
-      if (FinalPosition->is_visited()) {
-        wasVisited = true;
-      }
-      
-      if (!wasVisited) {
-        Position = FinalPosition;
-        Visited.Add(Position);
-        Position->visit();
-        delete[] distances;
+    }
+    
+    if (!destSubject) {
+        if (++Mistakes >= 3) {
+            GameFinished = true;
+            return -2;
+        }
+        return -1;
+    }
+    
+    // Проверка: сосед и не посещён
+    const auto& neighbors = Position->get_neighbours();
+    bool isNeighbor = (std::find(neighbors.begin(), neighbors.end(), destSubject) != neighbors.end());
+    bool wasVisited = is_visited_in_game(Visited, destSubject) || destSubject->is_visited();
+    
+    if (!isNeighbor || wasVisited) {
+        if (++Mistakes >= 3) {
+            GameFinished = true;
+            return -2;
+        }
+        return -1;
+    }
+    
+    // Выполнение хода
+    Position = destSubject;
+    Visited.push_back(Position);
+    Position->visit();
+    Turn = 1;
+    
+    if (Position == FinalPosition) {
         GameFinished = true;
-        computerWonImmediately = true;
-        return 1; // Computer wins
-      }
+        return 1;
     }
-  }
-  
-  // Strategy: find move with odd distance to final position
-  AbstractSubject* bestMove = 0;
-  int bestDistance = -1;
-  bool foundOdd = false;
-  
-  // First look for moves with odd distance
-  for (int i = 0; i < neighborCount; i++) {
-    AbstractSubject* neighbor = neighbors.Get(i);
+    return 0;
+}
+
+int Game::makeComputerMove() {
+    if (GameFinished || Turn != 1) return -1;
     
-    // Check if region was visited
-    bool wasVisited = false;
-    int visitedCount = Visited.size();
-    for (int j = 0; j < visitedCount && !wasVisited; j++) {
-      if (Visited.Get(j) == neighbor) {
-        wasVisited = true;
-      }
+    auto distances = calculateDistances();  // std::vector, автоматическая очистка
+    
+    int currentIndex = index_of_in_list(Subjects, Position);
+    if (currentIndex == -1) {
+        GameFinished = true;
+        return -2;
     }
     
-    // Check AbstractSubject visited flag
-    if (neighbor->is_visited()) {
-      wasVisited = true;
-    }
+    const auto& neighbors = Position->get_neighbours();
     
-    // Skip visited regions
-    if (!wasVisited) {
-      // Find index of neighbor
-      int neighborIndex = -1;
-      bool foundNeighbor = false;
-      for (int j = 0; j < NumberOfSubjects && !foundNeighbor; j++) {
-        if (Subjects.Get(j) == neighbor) {
-          neighborIndex = j;
-          foundNeighbor = true;
+    // Проверка немедленной победы
+    for (AbstractSubject* neighbor : neighbors) {
+        if (neighbor == FinalPosition) {
+            bool wasVisited = is_visited_in_game(Visited, FinalPosition) || FinalPosition->is_visited();
+            if (!wasVisited) {
+                Position = FinalPosition;
+                Visited.push_back(Position);
+                Position->visit();
+                GameFinished = true;
+                return 1;
+            }
         }
-      }
-      
-      // Process only if neighbor was found
-      if (neighborIndex != -1) {
+    }
+    
+    // Стратегия: ход с нечётной дистанцией
+    AbstractSubject* bestMove = nullptr;
+    int bestDistance = -1;
+    bool foundOdd = false;
+    
+    for (AbstractSubject* neighbor : neighbors) {
+        bool wasVisited = is_visited_in_game(Visited, neighbor) || neighbor->is_visited();
+        if (wasVisited) continue;
+        
+        int neighborIndex = index_of_in_list(Subjects, neighbor);
+        if (neighborIndex == -1) continue;
+        
         int distance = distances[neighborIndex];
         
-        // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Даже если distance == -1 (недостижимо),
-        // это всё равно допустимый ход, если регион не посещён!
-        
-        // Если расстояние нечётное и достижимо
         if (distance != -1 && distance % 2 == 1) {
-          if (!foundOdd) {
-            foundOdd = true;
-            bestMove = neighbor;
-            bestDistance = distance;
-          } else if (distance < bestDistance) {
-            // Choose minimal odd distance
-            bestMove = neighbor;
-            bestDistance = distance;
-          }
+            if (!foundOdd || distance < bestDistance) {
+                foundOdd = true;
+                bestMove = neighbor;
+                bestDistance = distance;
+            }
         } else if (!foundOdd) {
-          // Если нечётных нет, выбираем минимальное расстояние
-          // (включая distance == -1, но тогда сравнивать distance < bestDistance не имеет смысла)
-          if (bestMove == 0) {
-            bestMove = neighbor;
-            bestDistance = distance;
-          } else if (distance != -1 && (bestDistance == -1 || distance < bestDistance)) {
-            // Предпочитаем достижимые регионы недостижимым
-            bestMove = neighbor;
-            bestDistance = distance;
-          } else if (distance == -1 && bestDistance == -1) {
-            // Если оба недостижимы, выбираем первого (или можно любого)
-            // Можно добавить эвристику: выбрать того соседа, у которого больше своих соседей
-            bestMove = neighbor;
-            bestDistance = distance;
-          }
+            if (!bestMove || (distance != -1 && (bestDistance == -1 || distance < bestDistance))) {
+                bestMove = neighbor;
+                bestDistance = distance;
+            }
         }
-      }
     }
-  }
-  
-  // Если нет допустимых ходов
-  if (bestMove == 0) {
-    delete[] distances;
-    GameFinished = true;
-    return -2; // Computer loses - действительно нет ходов
-  }
-  
-  // Execute best move
-  Position = bestMove;
-  Visited.Add(Position);
-  Position->visit();
-  Turn = 0; // Player's turn
-  
-  // Check if computer won
-  if (Position == FinalPosition) {
-    delete[] distances;
-    GameFinished = true;
-    return 1;
-  }
-  
-  delete[] distances;
-  return 0;
-}
-
-
-
-
-// Getter methods for UI
-
-
-String Game::getCurrentRegionName() const {
-  if (!Position || Position->get_names().size() == 0) {
-    return String("");
-  }
-  return Position->get_names().Get(0);
-}
-
-
-String Game::getStartRegionName() const {
-  if (!StartPosition || StartPosition->get_names().size() == 0) {
-    return String("");
-  }
-  return StartPosition->get_names().Get(0);
-}
-
-
-String Game::getFinalRegionName() const {
-  if (!FinalPosition || FinalPosition->get_names().size() == 0) {
-    return String("");
-  }
-  return FinalPosition->get_names().Get(0);
-}
-
-
-List<String> Game::getNeighborRegionNames() const {
-  List<String> result;
-  if (!Position) return result;
-  
-  List<AbstractSubject*>& neighbors = Position->get_neighbours();
-  int count = neighbors.size();
-  for (int i = 0; i < count; i++) {
-    AbstractSubject* neighbor = neighbors.Get(i);
-    if (neighbor->get_names().size() > 0) {
-      result.Add(neighbor->get_names().Get(0));
+    
+    if (!bestMove) {
+        GameFinished = true;
+        return -2;
     }
-  }
-  return result;
-}
-
-
-List<String> Game::getVisitedRegionNames() const {
-  List<String> result;
-  int count = Visited.size();
-  for (int i = 0; i < count; i++) {
-    AbstractSubject* visited = Visited.Get(i);
-    if (visited->get_names().size() > 0) {
-      result.Add(visited->get_names().Get(0));
+    
+    Position = bestMove;
+    Visited.push_back(Position);
+    Position->visit();
+    Turn = 0;
+    
+    if (Position == FinalPosition) {
+        GameFinished = true;
+        return 1;
     }
-  }
-  return result;
+    return 0;
 }
 
+// === Геттеры для UI ===
 
-int Game::getMistakesCount() const {
-  return Mistakes;
+std::string Game::getCurrentRegionName() const {
+    if (!Position || Position->get_names().empty()) return "";
+    return Position->get_names().front();  // front() вместо Get(0)
 }
 
-
-int Game::getTurn() const {
-  return Turn;
+std::string Game::getStartRegionName() const {
+    if (!StartPosition || StartPosition->get_names().empty()) return "";
+    return StartPosition->get_names().front();
 }
 
-
-bool Game::isGameFinished() const {
-  return GameFinished;
+std::string Game::getFinalRegionName() const {
+    if (!FinalPosition || FinalPosition->get_names().empty()) return "";
+    return FinalPosition->get_names().front();
 }
 
-// -1 = game ongoing, 0 = player, 1 = computer
+std::vector<std::string> Game::getNeighborRegionNames() const {
+    std::vector<std::string> result;
+    if (!Position) return result;
+    
+    for (AbstractSubject* neighbor : Position->get_neighbours()) {
+        const auto& names = neighbor->get_names();
+        if (!names.empty()) {
+            result.push_back(names.front());
+        }
+    }
+    return result;
+}
+
+std::vector<std::string> Game::getVisitedRegionNames() const {
+    std::vector<std::string> result;
+    for (AbstractSubject* visited : Visited) {  // Visited — std::vector
+        const auto& names = visited->get_names();
+        if (!names.empty()) {
+            result.push_back(names.front());
+        }
+    }
+    return result;
+}
+
+int Game::getMistakesCount() const { return Mistakes; }
+int Game::getTurn() const { return Turn; }
+bool Game::isGameFinished() const { return GameFinished; }
+
 int Game::getWinner() const {
-  if (!GameFinished) return -1;
-  
-  if (Position == FinalPosition) {
-    return (Turn == 1) ? 1 : 0;
-  }
-  
-  if (Mistakes >= 3) return 1;
-  
-  return (Turn == 0) ? 1 : 0;
+    if (!GameFinished) return -1;
+    if (Position == FinalPosition) return (Turn == 1) ? 1 : 0;
+    if (Mistakes >= 3) return 1;
+    return (Turn == 0) ? 1 : 0;
 }
-
-
 
 void Game::reset() {
-  // Select new start and final positions
-  int startIndex = rand() % NumberOfSubjects;
-  StartPosition = Subjects.Get(startIndex);
-  Position = StartPosition;
-  
-  int finalIndex;
-  do {
-    finalIndex = rand() % NumberOfSubjects;
-  } while (finalIndex == startIndex);
-  FinalPosition = Subjects.Get(finalIndex);
-  
-  // Clear visited lists
-  Visited.clear();
-  Visited.Add(Position);
-  
-  // Reset all subjects' visited flags
-  
-  List<AbstractSubject*>::Iterator<AbstractSubject*> iter = Subjects.iter();
-  while (!iter.isEnd())
-    iter.next()->unvisit();
-  
-  // Mark start position as visited
-  Position->visit();
-  
-  // Reset game state
-  Turn = 0;
-  Mistakes = 0;
-  GameFinished = false;
+    std::vector<AbstractSubject*> subjects_vec(Subjects.begin(), Subjects.end());
+    
+    int startIndex = rand() % NumberOfSubjects;
+    StartPosition = subjects_vec[startIndex];
+    Position = StartPosition;
+    
+    int finalIndex;
+    do {
+        finalIndex = rand() % NumberOfSubjects;
+    } while (finalIndex == startIndex);
+    FinalPosition = subjects_vec[finalIndex];
+    
+    Visited.clear();
+    Visited.push_back(Position);
+    
+    // Сброс флагов посещения
+    for (AbstractSubject* subject : Subjects) {
+        subject->unvisit();
+    }
+    Position->visit();
+    
+    Turn = 0;
+    Mistakes = 0;
+    GameFinished = false;
 }
 
-
-// Check if a region is reachable from current position (for UI validation)
-bool Game::isRegionReachable(String regionName) const {
-  if (!Position || GameFinished || Turn != 0) return false;
-  
-  // Get current neighbors
-  List<AbstractSubject*>& neighbors = Position->get_neighbours();
-  int neighborCount = neighbors.size();
-  
-  for (int i = 0; i < neighborCount; i++) {
-    AbstractSubject* neighbor = neighbors.Get(i);
-    List<String>& names = neighbor->get_names();
+bool Game::isRegionReachable(const std::string& regionName) const {
+    if (!Position || GameFinished || Turn != 0) return false;
     
-    // Check all names for this region
-    bool nameFound = false;
-    for (int j = 0; j < names.size() && !nameFound; j++) {
-      if (names.Get(j) == regionName) {
-        nameFound = true;
-      }
-    }
-    
-    // If region name was found among this neighbor's names
-    if (nameFound) {
-      // Check if not visited
-      bool wasVisited = false;
-      int visitedCount = Visited.size();
-      
-      for (int k = 0; k < visitedCount && !wasVisited; k++) {
-        if (Visited.Get(k) == neighbor) {
-          wasVisited = true;
+    for (AbstractSubject* neighbor : Position->get_neighbours()) {
+        const auto& names = neighbor->get_names();
+        if (std::find(names.begin(), names.end(), regionName) != names.end()) {
+            bool wasVisited = is_visited_in_game(Visited, neighbor) || neighbor->is_visited();
+            return !wasVisited;
         }
-      }
-      
-      // Also check AbstractSubject visited flag
-      if (neighbor->is_visited()) {
-        wasVisited = true;
-      }
-      
-      // Return true if region is reachable (not visited)
-      return !wasVisited;
     }
-  }
-  
-  return false;
+    return false;
 }

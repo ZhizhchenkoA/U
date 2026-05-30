@@ -1,169 +1,124 @@
 #include "subject.h"
 #include "error.h"
+#include <algorithm>  // для std::find
 
 using json = nlohmann::json;
 
-
-AbstractSubject* Map::find_subject_by_name(
-        List<AbstractSubject*>& lst,
-        const String& name)
+// Вспомогательная функция для поиска по имени в std::list
+static AbstractSubject* find_in_list_by_name(
+    const std::list<AbstractSubject*>& lst,
+    const std::string& name)
 {
-    List<AbstractSubject*>::Iterator<AbstractSubject*> it = lst.iter();
-
-    while (!it.isEnd()) {
-        AbstractSubject* s = it.next();
-
-        List<String>::Iterator<String> nit = s->get_names().iter();
-        while (!nit.isEnd()) {
-            if (nit.next() == name)
-                return s;
+    for (auto* subject : lst) {
+        const auto& names = subject->get_names(); // std::list<std::string>
+        if (std::find(names.begin(), names.end(), name) != names.end()) {
+            return subject;
         }
     }
     return nullptr;
 }
 
+AbstractSubject* Map::find_subject_by_name(
+        std::list<AbstractSubject*>& lst,
+        const std::string& name)
+{
+    return find_in_list_by_name(lst, name);
+}
 
 void AbstractSubject::add_neighbour(AbstractSubject* s)
 {
-    if (!neighbours.in_list(s))
-        neighbours.push(s);
+    // std::find вместо in_list()
+    if (std::find(neighbours.begin(), neighbours.end(), s) == neighbours.end()) {
+        neighbours.push_back(s);  // push_back вместо push()
+    }
 }
 
-void AbstractSubject::add_name(String s)
+void AbstractSubject::add_name(const std::string& s)
 {
-    if (!names.in_list(s))
-        names.push(s);
+    if (std::find(names.begin(), names.end(), s) == names.end()) {
+        names.push_back(s);
+    }
 }
 
 void AbstractSubject::add_polygon()
 {
-    Polygon* p = new Polygon();
-    border.push(p);
+    border.emplace_back(new Polygon());  // emplace_back для эффективности
 }
 
 void AbstractSubject::add_coord(Coordinates c)
 {
-    //if (border.size() == 0)
-     //   throw Error("add_coord(): no polygon");
-
-    Polygon* p = border.iter().next();
-    p->push(c);
+    if (border.empty()) {
+        // throw Error("add_coord(): no polygon"); // раскомментируйте при необходимости
+        return;
+    }
+    // front() вместо iter().next()
+    border.front()->push_back(c);  // push_back для std::list<Coordinates>
 }
 
-
-
-void Map::get_from_JSON(String subject_borders_file,
-                        String subject_neighbours_file)
+void Map::get_from_JSON(const std::string& subject_borders_file,
+                        const std::string& subject_neighbours_file)
 {
-    // borders
-
-    std::ifstream borders_in(subject_borders_file.c_str());
+    // === Загрузка границ ===
+    std::ifstream borders_in(subject_borders_file);
     json borders_json;
     borders_in >> borders_json;
 
-    json::iterator feature_it = borders_json["features"].begin();
-    while (feature_it != borders_json["features"].end()) {
+    for (const auto& feature : borders_json["features"]) {
+        auto* subj = new SubjectRussia();
 
-        json feature = *feature_it;
-        SubjectRussia* subj = new SubjectRussia();
+        // nlohmann::json работает нативно с std::string
+        std::string name = feature["properties"]["name"].get<std::string>();
+        subj->add_name(name);
 
-    
-        const char* name_cstr =
-            feature["properties"]["name"].get_ref<const std::string&>().c_str();
-        subj->add_name(String(name_cstr));
+        const auto& geom = feature["geometry"];
+        std::string type = geom["type"].get<std::string>();
 
-
-        json geom = feature["geometry"];
-        const char* type_cstr =
-            geom["type"].get_ref<const std::string&>().c_str();
-
-        
-        if (String(type_cstr) == String("Polygon")) {
-
+        if (type == "Polygon") {
             subj->add_polygon();
-
-            json ring = geom["coordinates"][0];
-            json::iterator pt_it = ring.begin();
-            while (pt_it != ring.end()) {
-
-                Coordinates c;
-                c.x = (*pt_it)[0];
-                c.y = (*pt_it)[1];
-
+            const auto& ring = geom["coordinates"][0];
+            for (const auto& pt : ring) {
+                Coordinates c{pt[0].get<double>(), pt[1].get<double>()};
                 subj->add_coord(c);
-                ++pt_it;
             }
         }
-
-       
-        else if (String(type_cstr) == String("MultiPolygon")) {
-
-            json polys = geom["coordinates"];
-            json::iterator poly_it = polys.begin();
-
-            while (poly_it != polys.end()) {
-
+        else if (type == "MultiPolygon") {
+            for (const auto& poly : geom["coordinates"]) {
                 subj->add_polygon();
-
-                json ring = (*poly_it)[0];
-                json::iterator pt_it = ring.begin();
-                while (pt_it != ring.end()) {
-
-                    Coordinates c;
-                    c.x = (*pt_it)[0];
-                    c.y = (*pt_it)[1];
-
+                const auto& ring = poly[0];
+                for (const auto& pt : ring) {
+                    Coordinates c{pt[0].get<double>(), pt[1].get<double>()};
                     subj->add_coord(c);
-                    ++pt_it;
                 }
-                ++poly_it;
             }
         }
 
-        subject_list.push(subj);
-        ++feature_it;
+        subject_list.push_back(subj);  // push_back вместо push()
     }
 
-    //neighbours 
-
-    std::ifstream neigh_in(subject_neighbours_file.c_str());
+    // === Загрузка соседей ===
+    std::ifstream neigh_in(subject_neighbours_file);
     json neigh_json;
     neigh_in >> neigh_json;
 
-    json::iterator it = neigh_json.begin();
-    while (it != neigh_json.end()) {
+    for (const auto& [subj_name, neigh_array] : neigh_json.items()) {
+        AbstractSubject* subj = find_subject_by_name(subject_list, subj_name);
+        if (!subj) continue;
 
-        String subj_name(it.key().c_str());
-        AbstractSubject* subj =
-            find_subject_by_name(subject_list, subj_name);
-
-        if (subj) {
-            json neigh_array = it.value();
-            json::iterator neigh_it = neigh_array.begin();
-
-            while (neigh_it != neigh_array.end()) {
-
-                const char* neigh_cstr =
-                    neigh_it->get_ref<const json::string_t&>().c_str();
-
-                String neigh_name(neigh_cstr);
-                AbstractSubject* neigh_subj =
-                    find_subject_by_name(subject_list, neigh_name);
-
-                if (neigh_subj)
-                    subj->add_neighbour(neigh_subj);
-
-                ++neigh_it;
+        for (const auto& neigh_name_json : neigh_array) {
+            std::string neigh_name = neigh_name_json.get<std::string>();
+            AbstractSubject* neigh_subj = find_subject_by_name(subject_list, neigh_name);
+            if (neigh_subj) {
+                subj->add_neighbour(neigh_subj);
             }
         }
-        ++it;
-        
     }
 }
 
-bool Map::is_neighbours(String subject_name_1, String subject_name_2)
+bool Map::is_neighbours(const std::string& subject_name_1, 
+                        const std::string& subject_name_2)
 {
-    AbstractSubject* subj1 = find_subject_by_name(this->subject_list, subject_name_1);
-    return subj1 && find_subject_by_name(subj1->get_neighbours(), subject_name_2);
+    AbstractSubject* subj1 = find_subject_by_name(subject_list, subject_name_1);
+    if (!subj1) return false;
+    
+    return find_in_list_by_name(subj1->get_neighbours(), subject_name_2) != nullptr;
 }
-
