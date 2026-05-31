@@ -3,11 +3,11 @@
 #include <QPainter>
 #include <QPolygonF>
 #include <QMap>
-#include <QList>
+#include <QList>          // Используем Qt-контейнер для кэша
 #include "subject.h"
 
 struct CachedSubject {
-    QList<QPolygonF> polygons;
+    QList<QPolygonF> polygons; // Список полигонов для отрисовки
     bool visited = false;
 };
 
@@ -15,9 +15,9 @@ class MapWidget : public QWidget {
     Q_OBJECT
     Map* map;
     QMap<AbstractSubject*, CachedSubject*> cache;
+
     int widgetWidth;
     int widgetHeight;
-    static double normalizeLongitude360(double lon);
 public:
     explicit MapWidget(Map* m, QWidget* parent = nullptr);
     ~MapWidget();

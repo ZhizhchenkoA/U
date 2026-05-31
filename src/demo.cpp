@@ -1,6 +1,6 @@
 #include "demo.h"
 #include <algorithm>
-#include <vector>
+#include <cmath>
 
 MapWidget::MapWidget(Map* m, QWidget* parent)
     : QWidget(parent), map(m), widgetWidth(0), widgetHeight(0)
@@ -8,106 +8,113 @@ MapWidget::MapWidget(Map* m, QWidget* parent)
     setMinimumSize(400, 300);
 }
 
-MapWidget::~MapWidget()
-{
+MapWidget::~MapWidget() {
     qDeleteAll(cache);
     cache.clear();
 }
 
-double MapWidget::normalizeLongitude360(double lon) {
-    while (lon < 0) lon += 360;
-    while (lon >= 360) lon -= 360;
-    return lon;
-}
-
-void MapWidget::rebuildCache()
-{
+void MapWidget::rebuildCache() {
     qDeleteAll(cache);
     cache.clear();
 
-    auto& subjects = map->get_subjects();  // std::list<AbstractSubject*>&
-    std::vector<double> longitudes;
-    double minY =  1e100;
-    double maxY = -1e100;
+    double minX = 1e100, maxX = -1e100;
+    double minY = 1e100, maxY = -1e100;
+    bool hasData = false;
 
-    // Собираем bounding box
-    for (AbstractSubject* subj : subjects) {
-        auto& borders = subj->get_border();  // std::list<Polygon*>&
-        for (Polygon* poly : borders) {
-            for (const auto& c : *poly) {    // Polygon = std::list<Coordinates>
-                double normLon = normalizeLongitude360(c.x);
-                longitudes.push_back(normLon);
-                if (c.y < minY) minY = c.y;
-                if (c.y > maxY) maxY = c.y;
+    // map->get_subjects() возвращает std::list<AbstractSubject*>
+    const auto& subjects = map->get_subjects();
+
+    // Итерация по всем регионам (STL стиль)
+    for (auto* subj : subjects) {
+        CachedSubject* cached = new CachedSubject();
+        cached->visited = subj->is_visited();
+
+        // subj->get_border() возвращает std::list<Polygon*>
+        const auto& borders = subj->get_border();
+        for (auto* poly : borders) {
+            QPolygonF qpoly;
+            
+            // Polygon - это std::list<Coordinates>
+            for (const auto& c : *poly) {
+                double lon = c.x;
+                double lat = c.y;
+
+                // Нормализация долготы в [0, 360]
+                // Это решает проблему разрыва карты на 180-м меридиане
+                while (lon < 0) lon += 360.0;
+                while (lon >= 360) lon -= 360.0;
+
+                qpoly << QPointF(lon, lat);
+
+                if (!hasData) {
+                    minX = maxX = lon;
+                    minY = maxY = lat;
+                    hasData = true;
+                } else {
+                    if (lon < minX) minX = lon;
+                    if (lon > maxX) maxX = lon;
+                    if (lat < minY) minY = lat;
+                    if (lat > maxY) maxY = lat;
+                }
+            }
+
+            // Добавляем валидные полигоны в кэш
+            if (qpoly.size() >= 3) {
+                cached->polygons.append(qpoly);
             }
         }
+        cache.insert(subj, cached);
     }
 
-    if (longitudes.empty() || minY >= maxY)
-        return;
+    if (!hasData) return;
 
-    double minX = *std::min_element(longitudes.begin(), longitudes.end());
-    double maxX = *std::max_element(longitudes.begin(), longitudes.end());
+    // Расчет масштаба
+    double marginLon = (maxX - minX) * 0.05;
+    double marginLat = (maxY - minY) * 0.05;
+    minX -= marginLon; maxX += marginLon;
+    minY -= marginLat; maxY += marginLat;
 
-    // Коррекция долготы для перехода через 180 меридиан
-    if (maxX - minX > 180) {
-        for (auto& lon : longitudes) {
-            if (lon > 180) lon -= 360;
-        }
-        minX = *std::min_element(longitudes.begin(), longitudes.end());
-        maxX = *std::max_element(longitudes.begin(), longitudes.end());
-    }
-
-    double mapWidth  = maxX - minX;
+    double mapWidth = maxX - minX;
     double mapHeight = maxY - minY;
     if (mapWidth <= 0 || mapHeight <= 0) return;
 
     const int topMargin = 40;
     double scaleX = widgetWidth / mapWidth;
     double scaleY = (widgetHeight - topMargin) / mapHeight;
-    double scale = (scaleX < scaleY) ? scaleX : scaleY;
-    double offsetX = (widgetWidth  - mapWidth  * scale) / 2.0;
+    double scale = std::min(scaleX, scaleY);
+    
+    double offsetX = (widgetWidth - mapWidth * scale) / 2.0;
     double offsetY = (widgetHeight - topMargin - mapHeight * scale) / 2.0;
 
-    // Заполняем кэш полигонами
-    for (AbstractSubject* subj : subjects) {
-        auto* cached = new CachedSubject();
-        cached->visited = subj->is_visited();
-
-        auto& borders = subj->get_border();
-        for (Polygon* poly : borders) {
-            QPolygonF qpoly;
-            for (const auto& c : *poly) {
-                double normLon = normalizeLongitude360(c.x);
-                if (maxX - minX > 180 && normLon > 180) normLon -= 360;
-
-                double nx = (normLon - minX) * scale + offsetX;
-                double ny = (maxY - c.y) * scale + offsetY;
-                qpoly << QPointF(nx, ny);
+    // Применение трансформации к кэшированным полигонам
+    for (auto it = cache.begin(); it != cache.end(); ++it) {
+        CachedSubject* cached = it.value();
+        for (int i = 0; i < cached->polygons.size(); ++i) {
+            QPolygonF& poly = cached->polygons[i];
+            for (int j = 0; j < poly.size(); ++j) {
+                double x = poly[j].x();
+                double y = poly[j].y();
+                poly[j].setX((x - minX) * scale + offsetX);
+                poly[j].setY((maxY - y) * scale + offsetY);
             }
-            cached->polygons.push_back(qpoly);
         }
-        cache.insert(subj, cached);
     }
 }
 
-void MapWidget::clearCache()
-{
+void MapWidget::clearCache() {
     qDeleteAll(cache);
     cache.clear();
     update();
 }
 
-void MapWidget::resizeEvent(QResizeEvent* event)
-{
+void MapWidget::resizeEvent(QResizeEvent* event) {
     widgetWidth = width();
     widgetHeight = height();
     rebuildCache();
     QWidget::resizeEvent(event);
 }
 
-void MapWidget::paintEvent(QPaintEvent*)
-{
+void MapWidget::paintEvent(QPaintEvent*) {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.fillRect(rect(), Qt::white);
@@ -120,16 +127,25 @@ void MapWidget::paintEvent(QPaintEvent*)
     painter.drawText(0, 0, width(), topMargin, Qt::AlignCenter, "Карта России");
     painter.translate(0, topMargin);
 
-    QPen pen(Qt::black);
-    pen.setWidth(1);
-    painter.setPen(pen);
-
-    // Отрисовка кэшированных регионов
+    // ЭТАП 1: Заливка (без обводки, чтобы избежать артефактов на стыках)
     for (auto it = cache.begin(); it != cache.end(); ++it) {
-        auto* cached = it.value();
-        painter.setBrush(cached->visited ? QColor(0, 180, 0, 160) : Qt::NoBrush);
+        CachedSubject* cached = it.value();
+        if (cached->visited) {
+            painter.setBrush(QColor(0, 180, 0, 160));
+            painter.setPen(Qt::NoPen); 
+            for (const auto& poly : cached->polygons) {
+                painter.drawPolygon(poly, Qt::WindingFill);
+            }
+        }
+    }
+
+    // ЭТАП 2: Обводка (отдельно, поверх заливки)
+    painter.setBrush(Qt::NoBrush);
+    painter.setPen(QPen(Qt::black, 1));
+    for (auto it = cache.begin(); it != cache.end(); ++it) {
+        CachedSubject* cached = it.value();
         for (const auto& poly : cached->polygons) {
-            painter.drawPolygon(poly);
+            painter.drawPolygon(poly, Qt::WindingFill);
         }
     }
 }
