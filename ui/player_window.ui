@@ -36,9 +36,6 @@
       <height>51</height>
      </rect>
     </property>
-    <property name="text">
-     <string>Текущий регион</string>
-    </property>
    </widget>
    <widget class="QPushButton" name="makeMoveButton">
     <property name="geometry">
@@ -61,9 +58,6 @@
       <width>271</width>
       <height>51</height>
      </rect>
-    </property>
-    <property name="text">
-     <string>Конечный регион</string>
     </property>
    </widget>
    <widget class="QTextEdit" name="gameInfoText">

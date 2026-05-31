@@ -1,10 +1,13 @@
 #include <QApplication>
 #include <QMainWindow>
+#include <QMetaType>
+Q_DECLARE_METATYPE(std::string)
 
 #include "presenter.h"
 
 int main(int argc, char *argv[])
 {
+    qRegisterMetaType<std::string>();
     QApplication app(argc, argv);
 
     Presenter presenter;

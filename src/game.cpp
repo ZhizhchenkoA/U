@@ -29,15 +29,14 @@ std::vector<int> Game::calculateDistances() {
     int finalIndex = index_of_in_list(Subjects, FinalPosition);
     if (finalIndex == -1) return distances;
     
-    // STL queue: front() + pop() вместо remove()
     std::queue<AbstractSubject*> q;
     distances[finalIndex] = 0;
     visitedInBFS[finalIndex] = true;
     q.push(FinalPosition);
     
     while (!q.empty()) {
-        AbstractSubject* current = q.front();  // ⚠️ сначала получаем
-        q.pop();                                // ⚠️ потом удаляем
+        AbstractSubject* current = q.front();
+        q.pop(); 
         
         int currentIndex = index_of_in_list(Subjects, current);
         if (currentIndex == -1) continue;
@@ -56,7 +55,7 @@ std::vector<int> Game::calculateDistances() {
         }
     }
     
-    return distances;  // std::vector управляет памятью автоматически
+    return distances;
 }
 
 Game::Game(int numberOfSubjects, std::list<AbstractSubject*>& subjects)
@@ -73,13 +72,12 @@ Game::Game(int numberOfSubjects, std::list<AbstractSubject*>& subjects)
     
     if (NumberOfSubjects <= 0 || Subjects.empty()) return;
     
-    // Для доступа по индексу копируем list в vector (единоразово)
     std::vector<AbstractSubject*> subjects_vec(Subjects.begin(), Subjects.end());
     
     int startIndex = rand() % NumberOfSubjects;
     StartPosition = subjects_vec[startIndex];
     Position = StartPosition;
-    Visited.push_back(Position);  // push_back для std::vector
+    Visited.push_back(Position);
     
     int finalIndex;
     do {
@@ -259,8 +257,16 @@ bool Game::isGameFinished() const { return GameFinished; }
 
 int Game::getWinner() const {
     if (!GameFinished) return -1;
-    if (Position == FinalPosition) return (Turn == 1) ? 1 : 0;
-    if (Mistakes >= 3) return 1;
+    
+    if (Position == FinalPosition) {
+        // Если сейчас Turn == 1, значит последний ход сделал игрок -> победа игрока (0)
+        // Если Turn == 0, значит последний ход сделал компьютер -> победа компьютера (1)
+        return (Turn == 1) ? 0 : 1;
+    }
+    
+    if (Mistakes >= 3) return 1; // Компьютер победил из-за 3 ошибок игрока
+    
+    // Если игра закончилась из-за отсутствия ходов у компьютера
     return (Turn == 0) ? 1 : 0;
 }
 

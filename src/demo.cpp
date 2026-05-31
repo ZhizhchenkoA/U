@@ -1,19 +1,16 @@
 #include "demo.h"
-#include <limits>
+#include <algorithm>
+#include <vector>
 
-MapWidget::MapWidget(Map* m, QWidget* parent): QWidget(parent), map(m), widgetWidth(0), widgetHeight(0)
+MapWidget::MapWidget(Map* m, QWidget* parent)
+    : QWidget(parent), map(m), widgetWidth(0), widgetHeight(0)
 {
     setMinimumSize(400, 300);
 }
 
-
 MapWidget::~MapWidget()
 {
-    QMap<AbstractSubject*, CachedSubject*>::iterator it = cache.begin();
-    while (it != cache.end()) {
-        delete it.value();
-        ++it;
-    }
+    qDeleteAll(cache);
     cache.clear();
 }
 
@@ -25,54 +22,37 @@ double MapWidget::normalizeLongitude360(double lon) {
 
 void MapWidget::rebuildCache()
 {
-    QMap<AbstractSubject*, CachedSubject*>::iterator itc = cache.begin();
-    while (itc != cache.end()) {
-        delete itc.value();
-        ++itc;
-    }
+    qDeleteAll(cache);
     cache.clear();
 
-    List<AbstractSubject*>& subjects = map->get_subjects();
-    List<AbstractSubject*>::Iterator<AbstractSubject*> sit = subjects.iter();
-
-
-    QVector<double> longitudes;
+    auto& subjects = map->get_subjects();  // std::list<AbstractSubject*>&
+    std::vector<double> longitudes;
     double minY =  1e100;
     double maxY = -1e100;
 
-    while (!sit.isEnd()) {
-        AbstractSubject* subj = sit.next();
-
-        List<Polygon*>& borders = subj->get_border();
-        List<Polygon*>::Iterator<Polygon*> pit = borders.iter();
-
-        while (!pit.isEnd()) {
-            Polygon* poly = pit.next();
-
-            List<Coordinates>::Iterator<Coordinates> cit = poly->iter();
-            while (!cit.isEnd()) {
-                Coordinates c = cit.next();
-
+    // Собираем bounding box
+    for (AbstractSubject* subj : subjects) {
+        auto& borders = subj->get_border();  // std::list<Polygon*>&
+        for (Polygon* poly : borders) {
+            for (const auto& c : *poly) {    // Polygon = std::list<Coordinates>
                 double normLon = normalizeLongitude360(c.x);
-                longitudes.append(normLon);
-
+                longitudes.push_back(normLon);
                 if (c.y < minY) minY = c.y;
                 if (c.y > maxY) maxY = c.y;
             }
         }
     }
 
-    if (longitudes.isEmpty() || minY >= maxY)
+    if (longitudes.empty() || minY >= maxY)
         return;
 
     double minX = *std::min_element(longitudes.begin(), longitudes.end());
     double maxX = *std::max_element(longitudes.begin(), longitudes.end());
 
-
+    // Коррекция долготы для перехода через 180 меридиан
     if (maxX - minX > 180) {
-        for (int i = 0; i < longitudes.size(); ++i) {
-            if (longitudes[i] > 180)
-                longitudes[i] -= 360;
+        for (auto& lon : longitudes) {
+            if (lon > 180) lon -= 360;
         }
         minX = *std::min_element(longitudes.begin(), longitudes.end());
         maxX = *std::max_element(longitudes.begin(), longitudes.end());
@@ -80,52 +60,33 @@ void MapWidget::rebuildCache()
 
     double mapWidth  = maxX - minX;
     double mapHeight = maxY - minY;
-
-    if (mapWidth <= 0 || mapHeight <= 0)
-        return;
+    if (mapWidth <= 0 || mapHeight <= 0) return;
 
     const int topMargin = 40;
-
     double scaleX = widgetWidth / mapWidth;
     double scaleY = (widgetHeight - topMargin) / mapHeight;
-
     double scale = (scaleX < scaleY) ? scaleX : scaleY;
-
     double offsetX = (widgetWidth  - mapWidth  * scale) / 2.0;
     double offsetY = (widgetHeight - topMargin - mapHeight * scale) / 2.0;
 
-    sit = subjects.iter();
-
-    while (!sit.isEnd()) {
-        AbstractSubject* subj = sit.next();
-
-        CachedSubject* cached = new CachedSubject();
+    // Заполняем кэш полигонами
+    for (AbstractSubject* subj : subjects) {
+        auto* cached = new CachedSubject();
         cached->visited = subj->is_visited();
 
-        List<Polygon*>& borders = subj->get_border();
-        List<Polygon*>::Iterator<Polygon*> pit = borders.iter();
-
-        while (!pit.isEnd()) {
-            Polygon* poly = pit.next();
+        auto& borders = subj->get_border();
+        for (Polygon* poly : borders) {
             QPolygonF qpoly;
-
-            List<Coordinates>::Iterator<Coordinates> cit = poly->iter();
-            while (!cit.isEnd()) {
-                Coordinates c = cit.next();
-
+            for (const auto& c : *poly) {
                 double normLon = normalizeLongitude360(c.x);
-                if (maxX - minX > 180 && normLon > 180)
-                    normLon -= 360; 
+                if (maxX - minX > 180 && normLon > 180) normLon -= 360;
 
                 double nx = (normLon - minX) * scale + offsetX;
                 double ny = (maxY - c.y) * scale + offsetY;
-
                 qpoly << QPointF(nx, ny);
             }
-
-            cached->polygons.push(qpoly);
+            cached->polygons.push_back(qpoly);
         }
-
         cache.insert(subj, cached);
     }
 }
@@ -145,45 +106,30 @@ void MapWidget::resizeEvent(QResizeEvent* event)
     QWidget::resizeEvent(event);
 }
 
-
 void MapWidget::paintEvent(QPaintEvent*)
 {
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
-
     painter.fillRect(rect(), Qt::white);
 
     const int topMargin = 40;
-
     QFont font = painter.font();
     font.setPointSize(16);
     painter.setFont(font);
     painter.setPen(Qt::black);
-    painter.drawText(0, 0, width(), topMargin,
-                     Qt::AlignCenter, "Карта России");
-
+    painter.drawText(0, 0, width(), topMargin, Qt::AlignCenter, "Карта России");
     painter.translate(0, topMargin);
 
     QPen pen(Qt::black);
     pen.setWidth(1);
     painter.setPen(pen);
 
-    QMap<AbstractSubject*, CachedSubject*>::iterator it = cache.begin();
-    while (it != cache.end()) {
-
-        CachedSubject* cached = it.value();
-
-        if (cached->visited)
-            painter.setBrush(QColor(0, 180, 0, 160));
-        else
-            painter.setBrush(Qt::NoBrush);
-
-        List<QPolygonF>::Iterator<QPolygonF> pit =
-            cached->polygons.iter();
-
-        while (!pit.isEnd())
-            painter.drawPolygon(pit.next());
-
-        ++it;
+    // Отрисовка кэшированных регионов
+    for (auto it = cache.begin(); it != cache.end(); ++it) {
+        auto* cached = it.value();
+        painter.setBrush(cached->visited ? QColor(0, 180, 0, 160) : Qt::NoBrush);
+        for (const auto& poly : cached->polygons) {
+            painter.drawPolygon(poly);
+        }
     }
 }

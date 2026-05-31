@@ -1,44 +1,62 @@
 #pragma once
-
 #include <QMainWindow>
 #include <QTimer>
-#include "game.h"
-#include "subject.h"
+#include <QString>
+#include <vector>
+#include <string>
 
-namespace Ui {
-    class PlayerWindow;
-}
+namespace Ui { class PlayerWindow; }
+class Presenter;
+class Map;
 
-
-
-class PlayerWindow : public QMainWindow
-{
+class PlayerWindow : public QMainWindow {
     Q_OBJECT
 public:
-    explicit PlayerWindow(Map* map, QWidget *parent = nullptr);
-    void addMap(Map* m);
-    ~PlayerWindow();
+    explicit PlayerWindow(QWidget *parent = nullptr);
+    ~PlayerWindow() override;
+    
+    void setPresenter(Presenter* presenter);
+    void setMap(Map* map);
     void initGame();
-    void updateUI();
-private Q_SLOTS:
+
+public slots:
+    void updateCurrentRegion(const std::string& name);
+    void updateFinalRegion(const std::string& name);
+    void updateMistakes(int count);
+    void updateTurn(int turn);
+    void updateVisitedList(const std::vector<std::string>& names);
+    void updateNeighborList(const std::vector<std::string>& names);
+    void onGameFinished(int winner);
+
+private slots:
     void on_makeMoveButton_clicked();
     void on_regionInput_returnPressed();
-    void onComputerMove();
 
 signals:
-    void regionVisited(const QString& regionName);
-    void gameFinished();
+    void requestPlayerMove(const std::string& destination);
+    void requestComputerMove();
+    void requestResetGame();
+
 private:
-    
-    void handleGameResult(int result);
-    QStringList getAllRegionNames() const;
-    void processPlayerMove(const QString& regionName);
+    void setupConnections();
+    void updateRegionNameCache();
+    void enablePlayerInput(bool enabled);
+    void refreshTextLog();
 
     Ui::PlayerWindow *ui;
-    Game *game;
-    Map *map;
-    QTimer *computerTimer;
-    bool isComputerMoving;
-    String jsonFilePathRegions;
-    String jsonFilePathNeighbours;
+    Presenter* presenter_ = nullptr;
+    Map* map_ = nullptr;
+    QTimer* computerTimer_;
+    
+    bool playerTurn_ = true;
+    bool gameInitialized_ = false;
+    
+    // Кэш состояния для UI
+    std::string currentRegionName_;
+    std::string finalRegionName_;
+    int mistakesCount_ = 0;
+    std::vector<std::string> currentPath_;
+    std::vector<std::string> currentNeighbors_;
+    
+    mutable std::vector<std::string> regionNamesCache_;
 };

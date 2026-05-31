@@ -1,321 +1,148 @@
 #include "player_window.h"
 #include "ui_player_window.h"
+#include "presenter.h"
 
 #include <QMessageBox>
 #include <QCompleter>
-#include <QFocusEvent>
+#include <QStringListModel>
 
-
-PlayerWindow::PlayerWindow(Map *map, QWidget *parent)
+PlayerWindow::PlayerWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::PlayerWindow)
-    , game(nullptr)
-    , map(map)
-    , computerTimer(new QTimer(this))
-    , isComputerMoving(false)
-    , jsonFilePathRegions("data/new_russia (1).json")
-    , jsonFilePathNeighbours("russia_neighbours.json")
+    , presenter_(nullptr)
+    , map_(nullptr)
+    , computerTimer_(new QTimer(this))
+    , playerTurn_(true)
+    , gameInitialized_(false)
 {
     ui->setupUi(this);
-    
     setWindowTitle("Турнир Угольникова");
     
-    initGame();
     
-
-    connect(ui->makeMoveButton, &QPushButton::clicked, 
+    connect(ui->makeMoveButton, &QPushButton::clicked,
             this, &PlayerWindow::on_makeMoveButton_clicked);
-    connect(ui->regionInput, &QLineEdit::returnPressed, 
+    connect(ui->regionInput, &QLineEdit::returnPressed,
             this, &PlayerWindow::on_regionInput_returnPressed);
-    connect(computerTimer, &QTimer::timeout, 
-            this, &PlayerWindow::onComputerMove);
     
-
-    QCompleter *completer = new QCompleter(getAllRegionNames(), this);
+    auto* completer = new QCompleter(QStringList(), this);
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     completer->setFilterMode(Qt::MatchContains);
     ui->regionInput->setCompleter(completer);
     
-    
-
-    updateUI();
+    enablePlayerInput(false);
 }
 
-void PlayerWindow::addMap(Map *m)
-{
-    map = m;
+PlayerWindow::~PlayerWindow() { delete ui; }
+
+void PlayerWindow::setPresenter(Presenter* presenter) { presenter_ = presenter; }
+void PlayerWindow::setMap(Map* map) { map_ = map; updateRegionNameCache(); }
+
+void PlayerWindow::initGame() {
+    gameInitialized_ = true;
+    enablePlayerInput(true);
+    refreshTextLog();
 }
 
-PlayerWindow::~PlayerWindow()
-{
-    delete game;
-    delete map;
-    delete ui;
-}
-
-
-void PlayerWindow::initGame()
-{
-    // map creation
-    //map = new Map();
-    //map->get_from_JSON(jsonFilePathRegions, jsonFilePathNeighbours);
-    
-
-    List<AbstractSubject*>& subjects = map->get_subjects();
-    
-    game = new Game(subjects.size(), subjects);
-}
-
-
-void PlayerWindow::updateUI()
-{
-    if (!game) return;
-    
-    // text field clearing
-    ui->gameInfoText->clear();
-    
-
-    ui->gameInfoText->append("Турнир Угольникова");
-    ui->gameInfoText->append("");
-    
-    String currentRegion = game->getCurrentRegionName();
-    ui->gameInfoText->append("Текущий регион: " + 
-                            QString::fromStdString(currentRegion.c_str()));
-    
-    String finalRegion = game->getFinalRegionName();
-    ui->gameInfoText->append("Конечный регион: " + 
-                            QString::fromStdString(finalRegion.c_str()));
-    ui->gameInfoText->append("");
-    
-
-    ui->gameInfoText->append("Ошибок: " + 
-                            QString::number(game->getMistakesCount()) + "/3");
-    ui->gameInfoText->append("");
-    
-    
-    List<String> visited = game->getVisitedRegionNames();
-    if (visited.size() > 0) {
-        ui->gameInfoText->append("Путь:");
-        QString path;
-        for (int i = 0; i < visited.size(); i++) {
-            if (i > 0) path += " → ";
-            path += QString::fromStdString(visited.Get(i).c_str());
-        }
-        ui->gameInfoText->append(path);
-    }
-    
-    if (game->isGameFinished()) {
-        int winner = game->getWinner();
-        ui->gameInfoText->append("");
-        if (winner == 0) {
-            ui->gameInfoText->append("Игрок победил");
-        } else if (winner == 1) {
-            ui->gameInfoText->append("Компьютер победил");
-        }
-    } else {
-        ui->gameInfoText->append("");
-        if (game->getTurn() == 0) {
-            ui->gameInfoText->append("Ваш ход. Введите регион");
-        } else {
-            ui->gameInfoText->append("Ход компьютера...");
+void PlayerWindow::updateRegionNameCache() {
+    if (!map_) return;
+    regionNamesCache_.clear();
+    for (auto* subj : map_->get_subjects()) {
+        for (const auto& name : subj->get_names()) {
+            regionNamesCache_.push_back(name);
         }
     }
-    
+    if (auto* c = ui->regionInput->completer()) {
+        QStringList model;
+        for (const auto& n : regionNamesCache_) model << QString::fromStdString(n);
+        if (auto* lm = qobject_cast<QStringListModel*>(c->model())) lm->setStringList(model);
+        else c->setModel(new QStringListModel(model, c));
+    }
+}
 
-    ui->currentRegionLabel->setText("Текущий регион:\n" + 
-                                  QString::fromStdString(currentRegion.c_str()));
-    
-    ui->finalRegionLabel->setText("Конечный регион:\n" + 
-                                QString::fromStdString(finalRegion.c_str()));
-    
+// === Слоты обновления от Worker ===
+void PlayerWindow::updateCurrentRegion(const std::string& name) {
+    currentRegionName_ = name; refreshTextLog();
+}
+void PlayerWindow::updateFinalRegion(const std::string& name) {
+    finalRegionName_ = name; refreshTextLog();
+}
+void PlayerWindow::updateMistakes(int count) {
+    mistakesCount_ = count; refreshTextLog();
+}
+void PlayerWindow::updateTurn(int turn) {
+    playerTurn_ = (turn == 0);
+    enablePlayerInput(playerTurn_ && gameInitialized_);
+    refreshTextLog();
+}
+void PlayerWindow::updateVisitedList(const std::vector<std::string>& names) {
+    currentPath_ = names; refreshTextLog();
+}
+void PlayerWindow::updateNeighborList(const std::vector<std::string>& names) {
+    currentNeighbors_ = names; refreshTextLog();
+}
 
-    // check for showing elems                           
-    bool isPlayerTurn = (game->getTurn() == 0) && 
-                       !game->isGameFinished() && 
-                       !isComputerMoving;
+void PlayerWindow::onGameFinished(int winner) {
+    enablePlayerInput(false);
+    QString title = (winner == 0) ? "Вы победили!" : "Вы проиграли!";
+    QString msg = (winner == 0) ? "Вы дошли до конечного региона!" : "Компьютер победил!";
+    QMessageBox::information(this, title, msg);
     
-    ui->regionInput->setEnabled(isPlayerTurn);
-    ui->makeMoveButton->setEnabled(isPlayerTurn);
+    if (QMessageBox::question(this, "Новая игра", "Начать заново?", 
+                              QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {
+        emit requestResetGame();
+    }
+}
+
+// === Логика UI ===
+void PlayerWindow::enablePlayerInput(bool enabled) {
+    ui->regionInput->setEnabled(enabled);
+    ui->makeMoveButton->setEnabled(enabled);
     
-    if (isPlayerTurn) {
-        ui->regionInput->setFocus();
-        if (ui->regionInput->text().isEmpty()) {
-            ui->regionInput->setPlaceholderText("Введите название региона");
-        }
+    if (enabled) {
+        ui->regionInput->setPlaceholderText("Введите название региона");
+        // ✅ Безопасный фокус через таймер (не блокирует macOS Qt)
+        QTimer::singleShot(50, this, [this]() { if (ui->regionInput) ui->regionInput->setFocus();});
     } else {
         ui->regionInput->setPlaceholderText("Ожидание...");
     }
+}
+
+void PlayerWindow::refreshTextLog() {
+    if (!gameInitialized_) return;
+    ui->gameInfoText->clear();
+    ui->gameInfoText->append("Текущий: <b>" + QString::fromStdString(currentRegionName_) + "</b>");
+    ui->gameInfoText->append("Цель: <b>" + QString::fromStdString(finalRegionName_) + "</b>");
+    ui->gameInfoText->append("Ошибки: <b>" + QString::number(mistakesCount_) + "/3</b>");
+    ui->gameInfoText->append("");
     
-    // scroll text
-    QTextCursor cursor = ui->gameInfoText->textCursor();
+    if (!currentPath_.empty()) {
+        QString path;
+        for (size_t i = 0; i < currentPath_.size(); ++i) {
+            if (i > 0) path += " → ";
+            path += QString::fromStdString(currentPath_[i]);
+        }
+        ui->gameInfoText->append("Путь: " + path);
+    }
+    
+    ui->gameInfoText->append("------------------------------");
+    ui->gameInfoText->append(playerTurn_ ? "<font color='green'><b>Ваш ход!</b></font>" 
+                                         : "<font color='blue'><b>Ход компьютера...</b></font>");
+    
+    auto cursor = ui->gameInfoText->textCursor();
     cursor.movePosition(QTextCursor::End);
     ui->gameInfoText->setTextCursor(cursor);
 }
 
+void PlayerWindow::on_makeMoveButton_clicked() { on_regionInput_returnPressed(); }
 
-
-// make move
-void PlayerWindow::on_makeMoveButton_clicked()
-{
-    on_regionInput_returnPressed();
-}
-
-// enter аs make move
-void PlayerWindow::on_regionInput_returnPressed()
-{
+void PlayerWindow::on_regionInput_returnPressed() {
+    if (!playerTurn_ || !gameInitialized_) return;
     QString input = ui->regionInput->text().trimmed();
-    //if (input.isEmpty()) {
-    //    QMessageBox::warning(this, "Внимание", "Введите название региона!");
-    //    return;
-    //}
-    
-    processPlayerMove(input);
-}
-
-
-
-void PlayerWindow::processPlayerMove(const QString& regionName)
-{
-    if (!game || game->isGameFinished() || isComputerMoving) {
+    if (input.isEmpty()) {
+        ui->gameInfoText->append("<font color='red'>Введите название региона!</font>");
         return;
     }
-    
-    String destination(regionName.toStdString().c_str());
-    int result = game->makePlayerMove(destination);
-    
-    switch (result) {
-    case 0: // good move
-        ui->regionInput->clear();
-        updateUI();
-        emit regionVisited(QString::fromStdString(game->getCurrentRegionName().c_str()));
-
-        if (!game->isGameFinished()) {
-            isComputerMoving = true;
-            ui->makeMoveButton->setEnabled(false);
-            ui->regionInput->setEnabled(false);
-            computerTimer->singleShot(2000, this, &PlayerWindow::onComputerMove);
-        }
-        break;
-        
-    case 1: // player reached final
-        ui->regionInput->clear();
-        updateUI();
-        handleGameResult(0); // player won
-        break;
-        
-    case -1: // wrong step
-        updateUI();
-        ui->gameInfoText->append("Неверный ход! Ошибок: " + 
-                                QString::number(game->getMistakesCount()) + "/3");
-        ui->regionInput->selectAll();
-        ui->regionInput->setFocus();
-        break;
-        
-    case -2: // 3 mistakes
-        ui->regionInput->clear();
-        updateUI();
-        handleGameResult(3); // comp won
-        break;
-    }
-}
-
-
-void PlayerWindow::onComputerMove()
-{
-    if (!game || game->isGameFinished()) {
-        isComputerMoving = false;
-        ui->makeMoveButton->setEnabled(true);
-        ui->regionInput->setEnabled(true);
-        return;
-    }
-    
-    int result = game->makeComputerMove();
-    
-    switch (result) {
-    case 0: // succesful move
-        ui->gameInfoText->append("Компьютер сделал ход");
-        updateUI();
-        emit regionVisited(QString::fromStdString(game->getCurrentRegionName().c_str()));
-        break;
-        
-    case 1: // comp won
-        updateUI();
-        // emit regionVisited(QString::fromStdString(game->getCurrentRegionName().c_str()));
-        handleGameResult(1);
-        break;
-        
-    case -2: // no moves
-        updateUI();
-        handleGameResult(-2);
-        break;
-    }
-    
-    isComputerMoving = false;
-    ui->makeMoveButton->setEnabled(true);
-    ui->regionInput->setEnabled(true);
-    ui->regionInput->setFocus();
-}
-
-
-
-void PlayerWindow::handleGameResult(int result)
-{
-    emit gameFinished();
-    
-    QString title, message;
-    title = "?";
-    message = "???";
-    switch (result) {
-    case 0: // player reached final region
-        title = "Вы победили!";
-        message = "Поздравляем, вы дошли до конечного региона!";
-        break;
-    case 3: // player made 3 mistakes
-        title = "Вы проиграли!";
-        message = "Компьютер победил, вы совершили три ошибки.";
-        break;
-    case 1: //comp reached final region
-        title = "Вы проиграли!";
-        message = "Компьютер победил, добравшись до конечного региона!";
-        break;
-    case -2: //comp has no moves
-        title = "Вы победили!";
-        message = "Поздравляем, у компьютера не осталось ходов!";
-        break;
-    }
-    
-    QMessageBox::information(this, title, message);
-    
-
-    QMessageBox::StandardButton reply = QMessageBox::question(
-        this, "Новая игра", "Хотите начать новую игру?",
-        QMessageBox::Yes | QMessageBox::No
-    );
-    
-    if (reply == QMessageBox::Yes) {
-        // restart
-        delete game;
-        List<AbstractSubject*>& subjects = map->get_subjects();
-        game = new Game(subjects.size(), subjects);
-        updateUI();
-    }
-}
-
-
-QStringList PlayerWindow::getAllRegionNames() const
-{
-    QStringList regionNames;
-    
-    if (!map) return regionNames;
-    
-    List<AbstractSubject*>& subjects = map->get_subjects();
-    for (int i = 0; i < subjects.size(); i++) {
-        AbstractSubject* subject = subjects.Get(i);
-        List<String>& names = subject->get_names();
-        for (int j = 0; j < names.size(); j++) {
-            regionNames << QString::fromStdString(names.Get(j).c_str());
-        }
-    }
-    
-    return regionNames;
+    emit requestPlayerMove(input.toStdString());
+    enablePlayerInput(false);
+    ui->regionInput->clear();
 }
