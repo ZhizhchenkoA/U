@@ -1,42 +1,47 @@
 #pragma once
 
 #include "subject.h"
-#include "str.h"
-#include "list.h"
+#include <string>
+#include <list>
+#include <vector>
 
 class Game {
 private:
     int NumberOfSubjects;
-    List<AbstractSubject*>& Subjects;
+    std::list<AbstractSubject*>& Subjects;  // Ссылка на список из Map
     AbstractSubject* StartPosition;
     AbstractSubject* Position;
     AbstractSubject* FinalPosition;
     int Turn;   // 0 - player, 1 - computer
-    List<AbstractSubject*> Visited;
+    std::vector<AbstractSubject*> Visited;  // Вектор для быстрого доступа и кэш-локальности
     int Mistakes;
     bool GameFinished;
     
 public:
-    Game(int NumberOfSubjects, List<AbstractSubject*>& Subjects);
+    Game(int NumberOfSubjects, std::list<AbstractSubject*>& Subjects);
     ~Game();
     
-    int makePlayerMove(String destination);
+    int makePlayerMove(const std::string& destination);
     int makeComputerMove();
     
-    String getCurrentRegionName() const;
-    String getStartRegionName() const;
-    String getFinalRegionName() const;
-    List<String> getNeighborRegionNames() const;
-    List<String> getVisitedRegionNames() const;
+    std::string getCurrentRegionName() const;
+    std::string getStartRegionName() const;
+    std::string getFinalRegionName() const;
+    
+    // Возвращаем вектор строк — удобнее для Qt и JSON
+    std::vector<std::string> getNeighborRegionNames() const;
+    std::vector<std::string> getVisitedRegionNames() const;
+    
     int getMistakesCount() const;
     int getTurn() const;
     bool isGameFinished() const;
     int getWinner() const;
-    bool isRegionReachable(String regionName) const;
+    bool isRegionReachable(const std::string& regionName) const;
 
-    List<AbstractSubject*> getAllRegions() const;
+    std::list<AbstractSubject*> getAllRegions() const;
     void reset();
     
 private:
-    int* calculateDistances();
+    // Возвращаем вектор дистанций для удобства индексации
+    std::vector<int> calculateDistances();
 };

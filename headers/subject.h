@@ -1,50 +1,55 @@
 #pragma once 
 
-#include "list.h"
+#include <list>
+#include <string>
+#include <vector>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <iostream>
-#include "str.h"
 #include <QDebug>
 
-struct Coordinates{
+struct Coordinates {
     double x;
     double y;
 };
 
 
-
-typedef List<Coordinates> Polygon;
+typedef std::list<Coordinates> Polygon;
 
 class AbstractSubject {
 protected:
-    List<String> names;
-    List<AbstractSubject*> neighbours;
-    List<Polygon*> border;
+    std::list<std::string> names;
+    std::list<AbstractSubject*> neighbours;
+    std::list<Polygon*> border;
     bool is_visited_;
 public:
-    AbstractSubject():neighbours(), border(), names(), is_visited_(false){};
-    void add_neighbour(AbstractSubject*);
-    void add_name(String);
-    void add_coord(Coordinates);
+    AbstractSubject() : is_visited_(false) {};
+    
+    void add_neighbour(AbstractSubject* n) { neighbours.push_back(n); }
+    void add_name(const std::string& name) { names.push_back(name); }
+    void add_coord(Coordinates c);
     void add_polygon();
-    void visit(){ is_visited_ = true; }
+    
+    void visit() { is_visited_ = true; }
     void unvisit() { is_visited_ = false; }
-    List<String>& get_names(){ return names; }
-    List<AbstractSubject*>& get_neighbours(){ return neighbours;}
-    List<Polygon*>& get_border(){ return border; };
-    bool is_visited() {return is_visited_; };
+    
+    std::list<std::string>& get_names() { return names; }
+    std::list<AbstractSubject*>& get_neighbours() { return neighbours; }
+    std::list<Polygon*>& get_border() { return border; }
+    bool is_visited() const { return is_visited_; }
 };
 
-class SubjectRussia: public AbstractSubject{
-    int number_of_subject;
+class SubjectRussia : public AbstractSubject {
+    int number_of_subject = 0;
 };
 
-class Map{
-   List <AbstractSubject*> subject_list;
-   static AbstractSubject* find_subject_by_name(List<AbstractSubject*>& lst, const String& name);
+class Map {
+    std::list<AbstractSubject*> subject_list;
+    
+    static AbstractSubject* find_subject_by_name(std::list<AbstractSubject*>& lst, const std::string& name);
 public:
-    void get_from_JSON(String, String);
-    bool is_neighbours(String, String);
-    List <AbstractSubject*>& get_subjects(){ return subject_list; }
+    void get_from_JSON(const std::string& json_path, const std::string& geojson_path);
+    bool is_neighbours(const std::string& name1, const std::string& name2);
+    std::list<AbstractSubject*>& get_subjects() { return subject_list; }
 };
