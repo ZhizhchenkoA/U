@@ -84,7 +84,7 @@ void PlayerWindow::updateNeighborList(const std::vector<std::string>& names) {
 void PlayerWindow::onGameFinished(int winner) {
     enablePlayerInput(false);
     QString title = (winner == 0) ? "Вы победили!" : "Вы проиграли!";
-    QString msg = (winner == 0) ? "Вы дошли до конечного региона!" : "Компьютер победил!";
+    QString msg = (winner == 0) ? "Вы победили!" : "Компьютер победил!";
     QMessageBox::information(this, title, msg);
     
     if (QMessageBox::question(this, "Новая игра", "Начать заново?", 

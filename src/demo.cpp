@@ -21,26 +21,22 @@ void MapWidget::rebuildCache() {
     double minY = 1e100, maxY = -1e100;
     bool hasData = false;
 
-    // map->get_subjects() возвращает std::list<AbstractSubject*>
     const auto& subjects = map->get_subjects();
-
-    // Итерация по всем регионам (STL стиль)
     for (auto* subj : subjects) {
-        CachedSubject* cached = new CachedSubject();
+        auto* cached = new CachedSubject();
         cached->visited = subj->is_visited();
 
-        // subj->get_border() возвращает std::list<Polygon*>
+        // get_border() возвращает список полигонов (мультполигон)
         const auto& borders = subj->get_border();
         for (auto* poly : borders) {
             QPolygonF qpoly;
             
-            // Polygon - это std::list<Coordinates>
+            // Собираем точки одного контура (острова/части региона)
             for (const auto& c : *poly) {
                 double lon = c.x;
                 double lat = c.y;
 
-                // Нормализация долготы в [0, 360]
-                // Это решает проблему разрыва карты на 180-м меридиане
+                // Нормализация в [0, 360] для корректной отрисовки 180-го меридиана
                 while (lon < 0) lon += 360.0;
                 while (lon >= 360) lon -= 360.0;
 
@@ -58,8 +54,9 @@ void MapWidget::rebuildCache() {
                 }
             }
 
-            // Добавляем валидные полигоны в кэш
+            // Явно замыкаем контур. Это критично для Antialiasing в Qt.
             if (qpoly.size() >= 3) {
+                qpoly << qpoly.front(); 
                 cached->polygons.append(qpoly);
             }
         }
@@ -68,7 +65,7 @@ void MapWidget::rebuildCache() {
 
     if (!hasData) return;
 
-    // Расчет масштаба
+    // Отступы 5%
     double marginLon = (maxX - minX) * 0.05;
     double marginLat = (maxY - minY) * 0.05;
     minX -= marginLon; maxX += marginLon;
@@ -86,9 +83,9 @@ void MapWidget::rebuildCache() {
     double offsetX = (widgetWidth - mapWidth * scale) / 2.0;
     double offsetY = (widgetHeight - topMargin - mapHeight * scale) / 2.0;
 
-    // Применение трансформации к кэшированным полигонам
+    // Применяем масштаб к каждому полигону
     for (auto it = cache.begin(); it != cache.end(); ++it) {
-        CachedSubject* cached = it.value();
+        auto* cached = it.value();
         for (int i = 0; i < cached->polygons.size(); ++i) {
             QPolygonF& poly = cached->polygons[i];
             for (int j = 0; j < poly.size(); ++j) {
@@ -127,9 +124,10 @@ void MapWidget::paintEvent(QPaintEvent*) {
     painter.drawText(0, 0, width(), topMargin, Qt::AlignCenter, "Карта России");
     painter.translate(0, topMargin);
 
-    // ЭТАП 1: Заливка (без обводки, чтобы избежать артефактов на стыках)
+    // 🔹 ПРОХОД 1: ЗАЛИВКА (без обводки)
+    // Qt не будет рисовать границы, поэтому острова не соединятся линиями
     for (auto it = cache.begin(); it != cache.end(); ++it) {
-        CachedSubject* cached = it.value();
+        auto* cached = it.value();
         if (cached->visited) {
             painter.setBrush(QColor(0, 180, 0, 160));
             painter.setPen(Qt::NoPen); 
@@ -139,11 +137,12 @@ void MapWidget::paintEvent(QPaintEvent*) {
         }
     }
 
-    // ЭТАП 2: Обводка (отдельно, поверх заливки)
+    //  ПРОХОД 2: ОБВОДКА (без заливки)
+    // Рисуем чёткие контуры поверх заливки
     painter.setBrush(Qt::NoBrush);
     painter.setPen(QPen(Qt::black, 1));
     for (auto it = cache.begin(); it != cache.end(); ++it) {
-        CachedSubject* cached = it.value();
+        auto* cached = it.value();
         for (const auto& poly : cached->polygons) {
             painter.drawPolygon(poly, Qt::WindingFill);
         }

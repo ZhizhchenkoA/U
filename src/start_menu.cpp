@@ -1,4 +1,5 @@
 #include "start_menu.h"
+#include "network_menu.h"
 #include <QMessageBox>
 #include <QFileDialog>
 
@@ -48,9 +49,23 @@ void StartMenu::onStartComputerClicked() {
 }
 
 void StartMenu::onStartNetworkClicked() {
-    QMessageBox::information(this, "В разработке", 
-        "Игру по сети украли пришельцы.\n"
-        "Пока доступна только игра с компьютером.");
+    // Создаём меню сети без родителя, чтобы оно открывалось поверх скрытого главного меню
+    auto *netMenu = new NetworkMenu(nullptr);
+    
+    // При возврате показываем главное меню и удаляем окно сети
+    connect(netMenu, &NetworkMenu::backToMainMenu, this, [this, netMenu]() {
+        netMenu->deleteLater();
+        this->show();
+    });
+    
+    // При выборе игры (пока заглушка)
+    connect(netMenu, &NetworkMenu::joinGame, this, [](const QString& host) {
+        QMessageBox::information(nullptr, "Network Game", 
+            "Starting network game with: " + host + "\nImplementation in progress.");
+    });
+
+    netMenu->show();
+    this->hide(); // Скрываем главное меню
 }
 
 void StartMenu::onSelectMapClicked() {
