@@ -25,20 +25,7 @@ AbstractSubject* Map::find_subject_by_name(
     return find_in_list_by_name(lst, name);
 }
 
-void AbstractSubject::add_neighbour(AbstractSubject* s)
-{
-    // std::find вместо in_list()
-    if (std::find(neighbours.begin(), neighbours.end(), s) == neighbours.end()) {
-        neighbours.push_back(s);  // push_back вместо push()
-    }
-}
 
-void AbstractSubject::add_name(const std::string& s)
-{
-    if (std::find(names.begin(), names.end(), s) == names.end()) {
-        names.push_back(s);
-    }
-}
 
 void AbstractSubject::add_polygon()
 {
