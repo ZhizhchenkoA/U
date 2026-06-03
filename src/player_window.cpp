@@ -7,13 +7,9 @@
 #include <QStringListModel>
 
 PlayerWindow::PlayerWindow(QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::PlayerWindow)
-    , presenter_(nullptr)
-    , map_(nullptr)
-    , computerTimer_(new QTimer(this))
-    , playerTurn_(true)
-    , gameInitialized_(false)
+    : QMainWindow(parent), ui(new Ui::PlayerWindow), presenter_(nullptr), map_(nullptr),
+      computerTimer_(new QTimer(this)), playerTurn_(true), gameInitialized_(false),
+      uiTickTimer_(new QTimer(this)) // <-- Инициализация таймера тиков
 {
     ui->setupUi(this);
     setWindowTitle("Турнир Угольникова");
@@ -30,6 +26,10 @@ PlayerWindow::PlayerWindow(QWidget *parent)
     ui->regionInput->setCompleter(completer);
     
     enablePlayerInput(false);
+    connect(uiTickTimer_, &QTimer::timeout, this, &PlayerWindow::onUiTick);
+    uiTickTimer_->start(1000);
+    
+    enablePlayerInput(false);
 }
 
 PlayerWindow::~PlayerWindow() { delete ui; }
@@ -39,6 +39,7 @@ void PlayerWindow::setMap(Map* map) { map_ = map; updateRegionNameCache(); }
 
 void PlayerWindow::initGame() {
     gameInitialized_ = true;
+    currentTurnTimer_.start(); 
     enablePlayerInput(true);
     refreshTextLog();
 }
@@ -71,9 +72,11 @@ void PlayerWindow::updateMistakes(int count) {
 }
 void PlayerWindow::updateTurn(int turn) {
     playerTurn_ = (turn == 0);
+    currentTurnTimer_.restart(); // <-- Сброс таймера при смене хода
     enablePlayerInput(playerTurn_ && gameInitialized_);
     refreshTextLog();
 }
+
 void PlayerWindow::updateVisitedList(const std::vector<std::string>& names) {
     currentPath_ = names; refreshTextLog();
 }
@@ -93,6 +96,18 @@ void PlayerWindow::onGameFinished(int winner) {
     }
 }
 
+void PlayerWindow::updateThinkTimes(int playerTotalSec, int computerTotalSec) {
+    currentPlayerTotalTime_ = playerTotalSec;
+    currentComputerTotalTime_ = computerTotalSec;
+    refreshTextLog();
+}
+
+void PlayerWindow::onUiTick() {
+    if (!gameInitialized_) return;
+    // Просто обновляем текст, чтобы показать прошедшее время текущего хода
+    refreshTextLog();
+}
+
 // === Логика UI ===
 void PlayerWindow::enablePlayerInput(bool enabled) {
     ui->regionInput->setEnabled(enabled);
@@ -100,7 +115,7 @@ void PlayerWindow::enablePlayerInput(bool enabled) {
     
     if (enabled) {
         ui->regionInput->setPlaceholderText("Введите название региона");
-        // ✅ Безопасный фокус через таймер (не блокирует macOS Qt)
+        // Безопасный фокус через таймер (не блокирует macOS Qt)
         QTimer::singleShot(50, this, [this]() { if (ui->regionInput) ui->regionInput->setFocus();});
     } else {
         ui->regionInput->setPlaceholderText("Ожидание...");
@@ -110,9 +125,17 @@ void PlayerWindow::enablePlayerInput(bool enabled) {
 void PlayerWindow::refreshTextLog() {
     if (!gameInitialized_) return;
     ui->gameInfoText->clear();
+    
+    // Вычисляем время текущего хода в секундах
+    int currentTurnSec = static_cast<int>(currentTurnTimer_.elapsed() / 1000);
+
     ui->gameInfoText->append("Текущий: <b>" + QString::fromStdString(currentRegionName_) + "</b>");
     ui->gameInfoText->append("Цель: <b>" + QString::fromStdString(finalRegionName_) + "</b>");
     ui->gameInfoText->append("Ошибки: <b>" + QString::number(mistakesCount_) + "/3</b>");
+    ui->gameInfoText->append("Время на текущий ход: <b>" + QString::number(currentTurnSec) + " сек</b>");
+    ui->gameInfoText->append("Всего времени (Игрок / ПК): <b>" + 
+                             QString::number(currentPlayerTotalTime_) + " / " + 
+                             QString::number(currentComputerTotalTime_) + " сек</b>");
     ui->gameInfoText->append("");
     
     if (!currentPath_.empty()) {
@@ -123,15 +146,15 @@ void PlayerWindow::refreshTextLog() {
         }
         ui->gameInfoText->append("Путь: " + path);
     }
-    
     ui->gameInfoText->append("------------------------------");
-    ui->gameInfoText->append(playerTurn_ ? "<font color='green'><b>Ваш ход!</b></font>" 
+    ui->gameInfoText->append(playerTurn_ ? "<font color='green'><b>Ваш ход!</b></font>"
                                          : "<font color='blue'><b>Ход компьютера...</b></font>");
-    
+                                         
     auto cursor = ui->gameInfoText->textCursor();
     cursor.movePosition(QTextCursor::End);
     ui->gameInfoText->setTextCursor(cursor);
 }
+
 
 void PlayerWindow::on_makeMoveButton_clicked() { on_regionInput_returnPressed(); }
 

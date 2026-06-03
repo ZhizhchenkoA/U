@@ -63,7 +63,9 @@ void Presenter::setupConnections() {
             this, &Presenter::forwardComputerMove, Qt::QueuedConnection);
     connect(playerWindow_, &PlayerWindow::requestResetGame,
             this, &Presenter::forwardResetGame, Qt::QueuedConnection);
-
+    connect(gameWorker_, &GameWorker::thinkTimesUpdated,
+            playerWindow_, &PlayerWindow::updateThinkTimes, Qt::QueuedConnection);
+    
     // Worker - Presenter/UI (Обновления состояния)
     connect(gameWorker_, &GameWorker::gameReady,
             this, &Presenter::onGameReady, Qt::QueuedConnection);
@@ -117,7 +119,7 @@ void Presenter::forwardResetGame() {
 // === Обработка ответов от Worker ===
 
 void Presenter::onGameStateChanged() {
-    mapWidget_->rebuildCache();
+    mapWidget_->requestRebuildCache();
     mapWidget_->update();
 }
 
@@ -129,7 +131,7 @@ void Presenter::onGameFinished(int winner) {
     }
 
     mapWidget_->clearCache();
-    mapWidget_->rebuildCache();
+    mapWidget_->requestRebuildCache();
     mapWidget_->update();
 
     // Показываем диалог результата в окне игрока
@@ -157,5 +159,8 @@ void Presenter::onComputerMoveResult(int code) {
     }
 }
 
+void Presenter::startGame() {
+    qDebug() << "[Presenter] startGame() вызван. Ожидание сигнала gameReady...";
+}
 MapWidget* Presenter::getMapWidget() const { return mapWidget_; }
 PlayerWindow* Presenter::getPlayerWindow() const { return playerWindow_; }

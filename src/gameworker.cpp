@@ -17,41 +17,29 @@ GameWorker::~GameWorker() {
 void GameWorker::init(int numberOfSubjects, std::list<AbstractSubject*>* subjects,
                       AbstractSubject* start, AbstractSubject* final) {
     std::lock_guard<std::mutex> lock(gameMutex_);
-    
     if (!subjects || subjects->empty()) {
         qWarning() << "[GameWorker] Invalid subjects list!";
         return;
     }
-    
     subjects_ = subjects;
     game_ = std::make_unique<Game>(numberOfSubjects, *subjects);
     
-    qDebug() << "[GameWorker] Game initialized with" << numberOfSubjects << "subjects";
-    qDebug() << "[GameWorker] Thread:" << QThread::currentThreadId();
-    
-    // Если start/final не указаны, Game выберет их случайно
-    // Но можно принудительно установить, если нужно
-    if (start && final) {
-        // В текущей реализации Game выбирает start/final в конструкторе
-        // Если нужно изменить — добавьте методы в Game
-    }
+    turnTimer_.start(); // <-- Запускаем таймер при инициализации игры
     
     emitGameState();
-    qDebug() << "[GameWorker] Emitting gameReady signal...";
-    emit gameReady(); 
+    emit gameReady();
 }
 
 void GameWorker::onPlayerMove(const std::string& destination) {
     std::lock_guard<std::mutex> lock(gameMutex_);
-    
-    if (!running_ || !game_) {
-        qWarning() << "[GameWorker] Game not initialized or stopped!";
-        return;
-    }
-    
-    qDebug() << "[GameWorker] Player move:" << QString::fromStdString(destination)
-             << "in thread:" << QThread::currentThreadId();
-    
+    if (!running_ || !game_) return;
+
+    // 1. Фиксируем время, потраченное игроком
+    qint64 elapsedMs = turnTimer_.elapsed();
+    turnTimer_.restart(); // Перезапускаем для следующего хода
+    game_->addPlayerTime(static_cast<int>(elapsedMs / 1000));
+
+    // 2. Выполняем ход
     int result = game_->makePlayerMove(destination);
     emit playerMoveResult(result);
     
@@ -60,22 +48,28 @@ void GameWorker::onPlayerMove(const std::string& destination) {
     }
     
     emitGameState();
+    
+    // 3. Отправляем обновленное общее время в UI
+    emit thinkTimesUpdated(game_->getPlayerTotalTime(), game_->getComputerTotalTime());
 }
 
 void GameWorker::onComputerMove() {
     std::lock_guard<std::mutex> lock(gameMutex_);
+    if (!running_ || !game_) return;
+
+    // 1. Запускаем таймер перед "думанием" компьютера
+    turnTimer_.start();
     
-    if (!running_ || !game_) {
-        qWarning() << "[GameWorker] Game not initialized or stopped!";
-        return;
-    }
-    
-    qDebug() << "[GameWorker] Computer move in thread:" << QThread::currentThreadId();
-    
-    // Имитация "думания" компьютера (можно настроить)
+    // Имитация "думания" компьютера
     QThread::msleep(300);
     
     int result = game_->makeComputerMove();
+    
+    // 2. Фиксируем время компьютера
+    qint64 elapsedMs = turnTimer_.elapsed();
+    turnTimer_.restart();
+    game_->addComputerTime(static_cast<int>(elapsedMs / 1000));
+
     emit computerMoveResult(result);
     
     if (game_->isGameFinished()) {
@@ -83,20 +77,19 @@ void GameWorker::onComputerMove() {
     }
     
     emitGameState();
+    
+    // 3. Отправляем обновленное общее время в UI
+    emit thinkTimesUpdated(game_->getPlayerTotalTime(), game_->getComputerTotalTime());
 }
 
 void GameWorker::onReset() {
     std::lock_guard<std::mutex> lock(gameMutex_);
-    
-    if (!game_) {
-        qWarning() << "[GameWorker] Cannot reset - game not initialized!";
-        return;
-    }
-    
-    qDebug() << "[GameWorker] Resetting game in thread:" << QThread::currentThreadId();
+    if (!game_) return;
     
     game_->reset();
+    turnTimer_.start(); // Сброс таймера при новой игре
     emitGameState();
+    emit thinkTimesUpdated(0, 0);
 }
 
 void GameWorker::onQuit() {

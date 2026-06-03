@@ -1,6 +1,6 @@
 #include "game.h"
 #include <queue>
-#include <algorithm>    // std::find
+#include <algorithm>   
 #include <cstdlib>
 #include <ctime>
 #include <iostream>
@@ -59,14 +59,9 @@ std::vector<int> Game::calculateDistances() {
 }
 
 Game::Game(int numberOfSubjects, std::list<AbstractSubject*>& subjects)
-    : NumberOfSubjects(numberOfSubjects), 
-      Subjects(subjects), 
-      StartPosition(nullptr), 
-      Position(nullptr), 
-      FinalPosition(nullptr), 
-      Turn(0), 
-      Mistakes(0), 
-      GameFinished(false)
+    : NumberOfSubjects(numberOfSubjects), Subjects(subjects), StartPosition(nullptr),
+      Position(nullptr), FinalPosition(nullptr), Turn(0), Mistakes(0), GameFinished(false),
+      playerTotalTimeSec_(0), computerTotalTimeSec_(0) 
 {
     srand(static_cast<unsigned>(time(nullptr)));
     
@@ -295,6 +290,9 @@ void Game::reset() {
     Turn = 0;
     Mistakes = 0;
     GameFinished = false;
+
+    playerTotalTimeSec_ = 0;
+    computerTotalTimeSec_ = 0;
 }
 
 bool Game::isRegionReachable(const std::string& regionName) const {
@@ -308,4 +306,20 @@ bool Game::isRegionReachable(const std::string& regionName) const {
         }
     }
     return false;
+}
+
+void Game::addPlayerTime(int seconds) {
+    playerTotalTimeSec_ += seconds;
+}
+
+void Game::addComputerTime(int seconds) {
+    computerTotalTimeSec_ += seconds;
+}
+
+int Game::getPlayerTotalTime() const {
+    return playerTotalTimeSec_;
+}
+
+int Game::getComputerTotalTime() const {
+    return computerTotalTimeSec_;
 }

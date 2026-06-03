@@ -16,7 +16,10 @@ private:
     std::vector<AbstractSubject*> Visited;  // Вектор для быстрого доступа и кэш-локальности
     int Mistakes;
     bool GameFinished;
+    int playerTotalTimeSec_;
+    int computerTotalTimeSec_;
     
+    std::vector<int> calculateDistances();
 public:
     Game(int NumberOfSubjects, std::list<AbstractSubject*>& Subjects);
     ~Game();
@@ -40,8 +43,9 @@ public:
 
     std::list<AbstractSubject*> getAllRegions() const;
     void reset();
-    
-private:
-    // Возвращаем вектор дистанций для удобства индексации
-    std::vector<int> calculateDistances();
+    void addPlayerTime(int seconds);
+    void addComputerTime(int seconds);
+    int getPlayerTotalTime() const;
+    int getComputerTotalTime() const;    
+
 };

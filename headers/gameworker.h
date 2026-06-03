@@ -1,7 +1,7 @@
 #pragma once
-
 #include <QObject>
 #include <QThread>
+#include <QElapsedTimer> // <-- ОБЯЗАТЕЛЬНО ДОБАВИТЬ ЭТОТ ИНКЛУД
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -33,6 +33,9 @@ signals:
     void gameFinished(int winner);        // 0=player, 1=computer
     void gameStateChanged();              // общее обновление состояния
     
+    // Новый сигнал для передачи общего времени обдумывания в UI
+    void thinkTimesUpdated(int playerTotalSec, int computerTotalSec);
+
     // Детальные обновления для UI
     void currentRegionChanged(const std::string& name);
     void startRegionChanged(const std::string& name);
@@ -47,12 +50,14 @@ private:
     // Вспомогательные методы
     void emitGameState();
     bool isValidMove(const std::string& destination, AbstractSubject*& outSubject);
-    
+
     std::unique_ptr<Game> game_;
     std::mutex gameMutex_;
     bool running_ = true;
-    
+
     // Кэш для быстрого доступа (копия указателей из Map)
     std::list<AbstractSubject*>* subjects_ = nullptr;
     
+    // Таймер для замера длительности хода
+    QElapsedTimer turnTimer_;
 };
