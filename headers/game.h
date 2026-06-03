@@ -19,10 +19,13 @@ private:
     int playerTotalTimeSec_;
     int computerTotalTimeSec_;
     
+
     std::vector<int> calculateDistances();
 public:
     Game(int NumberOfSubjects, std::list<AbstractSubject*>& Subjects);
     ~Game();
+
+    int makeNetworkMove(const std::string& destination, int expectedTurn);
     
     int makePlayerMove(const std::string& destination);
     int makeComputerMove();

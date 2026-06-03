@@ -129,3 +129,21 @@ bool GameWorker::isValidMove(const std::string& destination, AbstractSubject*& o
     
     return false;
 }
+
+int GameWorker::makeNetworkMove(const std::string& destination, int expectedTurn) {
+    std::lock_guard<std::mutex> lock(gameMutex_);
+    if (!running_ || !game_) {
+        qWarning() << "[GameWorker] Game not initialized or stopped!";
+        return -1;
+    }
+    
+    int result = game_->makeNetworkMove(destination, expectedTurn);
+    
+    // После хода эмитим обновления состояния, как и в обычных ходах
+    if (game_->isGameFinished()) {
+        emit gameFinished(game_->getWinner());
+    }
+    emitGameState();
+    
+    return result;
+}

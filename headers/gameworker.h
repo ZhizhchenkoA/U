@@ -18,6 +18,8 @@ public:
     // Инициализация игры (вызывать из главного потока перед стартом)
     void init(int numberOfSubjects, std::list<AbstractSubject*>* subjects,
               AbstractSubject* start = nullptr, AbstractSubject* final = nullptr);
+    int makeNetworkMove(const std::string& destination, int expectedTurn);
+    Game* getGame() const { return game_.get(); }
 
 public slots:
     // Слоты для управления игрой (вызываются из GUI-потока)

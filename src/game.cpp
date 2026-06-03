@@ -323,3 +323,49 @@ int Game::getPlayerTotalTime() const {
 int Game::getComputerTotalTime() const {
     return computerTotalTimeSec_;
 }
+
+int Game::makeNetworkMove(const std::string& destination, int expectedTurn) {
+    if (GameFinished || Turn != expectedTurn) return -1; // Ход не в свою очередь
+    
+    AbstractSubject* destSubject = nullptr;
+    for (AbstractSubject* subject : Subjects) {
+        const std::list<std::string>& names = subject->get_names();
+        if (std::find(names.begin(), names.end(), destination) != names.end()) {
+            destSubject = subject;
+            break;
+        }
+    }
+    
+    if (!destSubject) {
+        if (++Mistakes >= 3) {
+            GameFinished = true;
+            return -2;
+        }
+        return -1;
+    }
+    
+    const std::list<AbstractSubject*>& neighbors = Position->get_neighbours();
+    bool isNeighbor = (std::find(neighbors.begin(), neighbors.end(), destSubject) != neighbors.end());
+    bool wasVisited = is_visited_in_game(Visited, destSubject) || destSubject->is_visited();
+    
+    if (!isNeighbor || wasVisited) {
+        if (++Mistakes >= 3) {
+            GameFinished = true;
+            return -2;
+        }
+        return -1;
+    }
+    
+    Position = destSubject;
+    Visited.push_back(Position);
+    Position->visit();
+    
+    // Переключаем ход: 0 -> 1, 1 -> 0
+    Turn = 1 - expectedTurn;
+    
+    if (Position == FinalPosition) {
+        GameFinished = true;
+        return 1; // Победа того, кто сделал ход
+    }
+    return 0; // Успешный ход
+}

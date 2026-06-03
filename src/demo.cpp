@@ -11,7 +11,7 @@ MapWidget::MapWidget(Map* m, QWidget* parent)
       isPanning_(false)
 {
     setMinimumSize(400, 300);
-    setMouseTracking(true); // Нужно для панорамирования
+    setMouseTracking(true);
     
     workerThread_ = new QThread(this);
     mapWorker_ = new MapWorker();
@@ -82,40 +82,30 @@ void MapWidget::showEvent(QShowEvent* event) {
     requestRebuildCache();
 }
 
-// === ЗУМ КОЛЕСОМ МЫШИ ===
+
 void MapWidget::wheelEvent(QWheelEvent* event) {
     if (cache.isEmpty()) return;
     
     QPointF mousePos = event->position();
     double mx = mousePos.x();
-    double my = mousePos.y() - 40; // Учитываем верхний отступ под заголовок
-
-    // Запоминаем, какая точка ЭКРАНА находится под курсором
-    // После зума мы хотим, чтобы эта же точка КАРТЫ осталась под курсором
-    
-    // Меняем зум
+    double my = mousePos.y() - 40; 
     double delta = event->angleDelta().y();
     double factor = (delta > 0) ? 1.15 : (1.0 / 1.15);
     double newZoom = zoomFactor_ * factor;
     
-    // Ограничиваем диапазон зума
     if (newZoom < 0.2) newZoom = 0.2;
     if (newZoom > 20.0) newZoom = 20.0;
     
-    // Корректируем panOffset так, чтобы точка под курсором осталась на месте
-    // Формула: новая_точка = (старая_точка - panOffset) * (newZoom / oldZoom) + newPanOffset
-    // Мы хотим: новая_точка == mx (или my)
-    // => newPanOffset = mx - (mx - panOffsetX_) * (newZoom / zoomFactor_)
     double zoomRatio = newZoom / zoomFactor_;
     panOffsetX_ = mx - (mx - panOffsetX_) * zoomRatio;
     panOffsetY_ = my - (my - panOffsetY_) * zoomRatio;
     
     zoomFactor_ = newZoom;
-    update(); // Просто перерисовываем, кэш не пересчитываем!
+    update();
     event->accept();
 }
 
-// === ПАНОРАМИРОВАНИЕ ===
+
 void MapWidget::mousePressEvent(QMouseEvent* event) {
     if (event->button() == Qt::MiddleButton ||
         (event->button() == Qt::LeftButton && (event->modifiers() & Qt::ControlModifier))) {
@@ -136,7 +126,7 @@ void MapWidget::mouseMoveEvent(QMouseEvent* event) {
         panOffsetX_ += dx;
         panOffsetY_ += dy;
         lastPanPoint_ = currentPos;
-        update(); // Просто перерисовываем
+        update();
         event->accept();
     } else {
         QWidget::mouseMoveEvent(event);
