@@ -15,10 +15,10 @@ public:
     bool isConnected() const;
 
 signals:
-    // Новый сигнал: сервер присвоил номер игрока
+    // signal for player number
     void playerNumberReceived(int playerNumber);
     
-    // Сигналы, идентичные GameWorker, для прозрачной работы с PlayerWindow
+    // signals for player window
     void currentRegionChanged(const std::string& name);
     void finalRegionChanged(const std::string& name);
     void mistakesUpdated(int count);

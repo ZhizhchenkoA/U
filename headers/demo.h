@@ -18,31 +18,32 @@ class MapWidget : public QWidget {
     int widgetWidth;
     int widgetHeight;
     
-    // Многопоточность
+    // Multithread
     QThread* workerThread_;
     MapWorker* mapWorker_;
     QTimer* rebuildTimer_;
 
-    // === Зум и панорамирование ===
-    double zoomFactor_;      // Коэффициент масштабирования (1.0 = по размеру окна)
-    double panOffsetX_;      // Дополнительный сдвиг по X (в экранных пикселях)
-    double panOffsetY_;      // Дополнительный сдвиг по Y
-    bool isPanning_;         // Флаг: идёт ли сейчас перетаскивание
-    QPoint lastPanPoint_;    // Последняя позиция мыши при перетаскивании
+    // changing the scale or moving map
+    double zoomFactor_;   
+    double panOffsetX_;    
+    double panOffsetY_;      
+    bool isPanning_;         
+    QPoint lastPanPoint_;   
 
 public:
     explicit MapWidget(Map* m, QWidget* parent = nullptr);
     ~MapWidget() override;
     void requestRebuildCache();
     void clearCache();
-    void resetView(); // Сброс зума и панорамы к исходному состоянию
+    
+    void resetView(); 
 
 protected:
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
     
-    // Обработчики зума и панорамирования
+    // Zoom and changing scale
     void wheelEvent(QWheelEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;

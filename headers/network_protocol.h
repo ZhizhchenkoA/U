@@ -10,7 +10,7 @@ namespace NetworkProtocol {
     inline QString makeWelcomeMsg(int playerNumber) {
         json j;
         j["type"] = "welcome";
-        j["playerNumber"] = playerNumber; // 1 или 2
+        j["playerNumber"] = playerNumber; // 1 or 2
         return QString::fromStdString(j.dump()) + "\n";
     }
 

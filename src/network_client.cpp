@@ -45,7 +45,6 @@ void NetworkClient::onReadyRead() {
         json j = json::parse(msg.toStdString());
         std::string type = j["type"].get<std::string>();
         
-        // === ОБРАБОТКА ПРИВЕТСТВИЯ ОТ СЕРВЕРА ===
         if (type == "welcome") {
             int playerNumber = j["playerNumber"].get<int>();
             qDebug() << "[Client] Received player number:" << playerNumber;
@@ -55,7 +54,7 @@ void NetworkClient::onReadyRead() {
         
         if (type == "state") {
             std::vector<std::string> visited;
-            for (const auto& v : j["visited"]) {
+            for (const nlohmann::json_abi_v3_12_0::json& v : j["visited"]) {
                 visited.push_back(v.get<std::string>());
             }
             

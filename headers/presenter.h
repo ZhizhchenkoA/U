@@ -17,17 +17,15 @@ public:
 
     MapWidget* getMapWidget() const;
     PlayerWindow* getPlayerWindow() const;
-
-    // Запуск игры (вызывается из main или после полной инициализации)
     void startGame();
 
 private slots:
-    // Перенаправление команд из UI в Worker
+    // Ui commands to worker
     void forwardPlayerMove(const std::string& destination);
     void forwardComputerMove();
     void forwardResetGame();
 
-    // Обработка ответов от Worker
+    // handling events from worker
     void onPlayerMoveResult(int code);
     void onComputerMoveResult(int code);
     void onGameFinished(int winner);

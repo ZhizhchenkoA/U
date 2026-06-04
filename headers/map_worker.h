@@ -6,13 +6,12 @@
 #include <QMetaType>
 #include "subject.h"
 
-// Структура кэшированного субъекта для отрисовки
 struct CachedSubject {
     QList<QPolygonF> polygons;
     bool visited = false;
 };
 
-// Структура для передачи данных между потоками
+// struct for reloading cache
 struct MapCachePayload {
     QMap<AbstractSubject*, CachedSubject*> cache;
     int width;

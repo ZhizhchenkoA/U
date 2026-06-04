@@ -8,12 +8,12 @@
 class Game {
 private:
     int NumberOfSubjects;
-    std::list<AbstractSubject*>& Subjects;  // Ссылка на список из Map
+    std::list<AbstractSubject*>& Subjects; 
     AbstractSubject* StartPosition;
     AbstractSubject* Position;
     AbstractSubject* FinalPosition;
     int Turn;   // 0 - player, 1 - computer
-    std::vector<AbstractSubject*> Visited;  // Вектор для быстрого доступа и кэш-локальности
+    std::vector<AbstractSubject*> Visited; 
     int Mistakes;
     bool GameFinished;
     int playerTotalTimeSec_;
@@ -34,7 +34,6 @@ public:
     std::string getStartRegionName() const;
     std::string getFinalRegionName() const;
     
-    // Возвращаем вектор строк — удобнее для Qt и JSON
     std::vector<std::string> getNeighborRegionNames() const;
     std::vector<std::string> getVisitedRegionNames() const;
     

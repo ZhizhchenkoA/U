@@ -15,38 +15,26 @@ Presenter::Presenter(QObject *parent)
       workerThread_(new QThread(this)),
       gameWorker_(new GameWorker())
 {
-    // 1. Загрузка данных карты (выполняется в главном потоке)
     map_.get_from_JSON("data/new_russia (1).geojson", "data/russia_neighbours.json");
-
-    // 2. Создание виджетов
     mapWidget_ = new MapWidget(&map_);
     playerWindow_ = new PlayerWindow();
     playerWindow_->setMap(&map_);
     playerWindow_->setPresenter(this);
-
-    // 3. Настройка многопоточности
     setupWorkerThread();
     setupConnections();
-
-    // 4. Асинхронная инициализация игры в рабочем потоке
     QMetaObject::invokeMethod(gameWorker_, [=]() {
         auto& subjects = map_.get_subjects();
         gameWorker_->init(static_cast<int>(subjects.size()), &subjects);
-        // Сигнал gameReady() отправляется внутри GameWorker::init()
     }, Qt::QueuedConnection);
 }
 
 Presenter::~Presenter() {
-    // Безопасная остановка рабочего потока
     if (workerThread_->isRunning()) {
         QMetaObject::invokeMethod(gameWorker_, &GameWorker::onQuit, Qt::QueuedConnection);
         workerThread_->quit();
-        if (!workerThread_->wait(3000)) {
+        if (!workerThread_->wait(3000)) 
             workerThread_->terminate();
-        }
     }
-    
-    
     delete playerWindow_;
 }
 
@@ -56,7 +44,7 @@ void Presenter::setupWorkerThread() {
 }
 
 void Presenter::setupConnections() {
-    // UI - Presenter - Worker (Команды игрока)
+    // UI - Presenter
     connect(playerWindow_, &PlayerWindow::requestPlayerMove,
             this, &Presenter::forwardPlayerMove, Qt::QueuedConnection);
     connect(playerWindow_, &PlayerWindow::requestComputerMove,
@@ -66,7 +54,7 @@ void Presenter::setupConnections() {
     connect(gameWorker_, &GameWorker::thinkTimesUpdated,
             playerWindow_, &PlayerWindow::updateThinkTimes, Qt::QueuedConnection);
     
-    // Worker - Presenter/UI (Обновления состояния)
+    // Worker - Presenter/UI 
     connect(gameWorker_, &GameWorker::gameReady,
             this, &Presenter::onGameReady, Qt::QueuedConnection);
     connect(gameWorker_, &GameWorker::gameStateChanged,
@@ -94,8 +82,6 @@ void Presenter::setupConnections() {
         playerWindow_, &PlayerWindow::updateTurn, Qt::QueuedConnection);
 }
 
-// === Реализация слотов-посредников ===
-
 void Presenter::onGameReady() {
     playerWindow_->updateMistakes(0);
     playerWindow_->initGame();
@@ -116,17 +102,14 @@ void Presenter::forwardResetGame() {
     QMetaObject::invokeMethod(gameWorker_, &GameWorker::onReset, Qt::QueuedConnection);
 }
 
-// === Обработка ответов от Worker ===
-
 void Presenter::onGameStateChanged() {
     mapWidget_->requestRebuildCache();
     mapWidget_->update();
 }
 
 void Presenter::onGameFinished(int winner) {
-    // Сброс визуальных флагов "посещено" на карте
-    auto& subjects = map_.get_subjects();
-    for (auto* subj : subjects) {
+    std::list<AbstractSubject*>& subjects = map_.get_subjects();
+    for (AbstractSubject* subj : subjects) {
         subj->unvisit();
     }
 
@@ -134,13 +117,11 @@ void Presenter::onGameFinished(int winner) {
     mapWidget_->requestRebuildCache();
     mapWidget_->update();
 
-    // Показываем диалог результата в окне игрока
     playerWindow_->onGameFinished(winner);
 }
 
 void Presenter::onPlayerMoveResult(int code) {
     if (code == 0) {
-        // Ход игрока успешен
         QTimer::singleShot(600, this, [this]() {
             forwardComputerMove();
         });

@@ -24,7 +24,7 @@ void GameWorker::init(int numberOfSubjects, std::list<AbstractSubject*>* subject
     subjects_ = subjects;
     game_ = std::make_unique<Game>(numberOfSubjects, *subjects);
     
-    turnTimer_.start(); // <-- Запускаем таймер при инициализации игры
+    turnTimer_.start(); 
     
     emitGameState();
     emit gameReady();
@@ -34,12 +34,10 @@ void GameWorker::onPlayerMove(const std::string& destination) {
     std::lock_guard<std::mutex> lock(gameMutex_);
     if (!running_ || !game_) return;
 
-    // 1. Фиксируем время, потраченное игроком
     qint64 elapsedMs = turnTimer_.elapsed();
-    turnTimer_.restart(); // Перезапускаем для следующего хода
+    turnTimer_.restart();
     game_->addPlayerTime(static_cast<int>(elapsedMs / 1000));
 
-    // 2. Выполняем ход
     int result = game_->makePlayerMove(destination);
     emit playerMoveResult(result);
     
@@ -49,23 +47,18 @@ void GameWorker::onPlayerMove(const std::string& destination) {
     
     emitGameState();
     
-    // 3. Отправляем обновленное общее время в UI
     emit thinkTimesUpdated(game_->getPlayerTotalTime(), game_->getComputerTotalTime());
 }
 
 void GameWorker::onComputerMove() {
     std::lock_guard<std::mutex> lock(gameMutex_);
     if (!running_ || !game_) return;
-
-    // 1. Запускаем таймер перед "думанием" компьютера
     turnTimer_.start();
     
-    // Имитация "думания" компьютера
     QThread::msleep(300);
     
     int result = game_->makeComputerMove();
     
-    // 2. Фиксируем время компьютера
     qint64 elapsedMs = turnTimer_.elapsed();
     turnTimer_.restart();
     game_->addComputerTime(static_cast<int>(elapsedMs / 1000));
@@ -77,8 +70,6 @@ void GameWorker::onComputerMove() {
     }
     
     emitGameState();
-    
-    // 3. Отправляем обновленное общее время в UI
     emit thinkTimesUpdated(game_->getPlayerTotalTime(), game_->getComputerTotalTime());
 }
 
@@ -87,7 +78,7 @@ void GameWorker::onReset() {
     if (!game_) return;
     
     game_->reset();
-    turnTimer_.start(); // Сброс таймера при новой игре
+    turnTimer_.start();
     emitGameState();
     emit thinkTimesUpdated(0, 0);
 }
@@ -97,10 +88,7 @@ void GameWorker::onQuit() {
     qDebug() << "[GameWorker] Quit signal received";
 }
 
-// === Вспомогательные методы ===
-
 void GameWorker::emitGameState() {
-    // Этот метод вызывается с захваченным gameMutex_
     if (!game_) return;
     
     emit currentRegionChanged(game_->getCurrentRegionName());
@@ -115,12 +103,11 @@ void GameWorker::emitGameState() {
 }
 
 bool GameWorker::isValidMove(const std::string& destination, AbstractSubject*& outSubject) {
-    // Этот метод вызывается с захваченным gameMutex_
-    if (!game_ || !subjects_) return false;
-    
-    // Поиск региона по имени
-    for (auto* subject : *subjects_) {
-        const auto& names = subject->get_names();
+    if (!game_ || !subjects_) 
+        return false;
+
+    for (AbstractSubject* subject : *subjects_) {
+        const std::list<std::string>& names = subject->get_names();
         if (std::find(names.begin(), names.end(), destination) != names.end()) {
             outSubject = subject;
             return true;
@@ -138,8 +125,6 @@ int GameWorker::makeNetworkMove(const std::string& destination, int expectedTurn
     }
     
     int result = game_->makeNetworkMove(destination, expectedTurn);
-    
-    // После хода эмитим обновления состояния, как и в обычных ходах
     if (game_->isGameFinished()) {
         emit gameFinished(game_->getWinner());
     }

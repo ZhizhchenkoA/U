@@ -20,7 +20,7 @@ PlayerWindow::PlayerWindow(QWidget *parent)
     connect(ui->regionInput, &QLineEdit::returnPressed,
             this, &PlayerWindow::on_regionInput_returnPressed);
     
-    auto* completer = new QCompleter(QStringList(), this);
+    QCompleter* completer = new QCompleter(QStringList(), this);
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     completer->setFilterMode(Qt::MatchContains);
     ui->regionInput->setCompleter(completer);
@@ -60,7 +60,6 @@ void PlayerWindow::updateRegionNameCache() {
     }
 }
 
-// === Слоты обновления от Worker ===
 void PlayerWindow::updateCurrentRegion(const std::string& name) {
     currentRegionName_ = name; refreshTextLog();
 }
@@ -86,18 +85,15 @@ void PlayerWindow::updateThinkTimes(int playerTotalSec, int computerTotalSec) {
 
 void PlayerWindow::onUiTick() {
     if (!gameInitialized_) return;
-    // Просто обновляем текст, чтобы показать прошедшее время текущего хода
     refreshTextLog();
 }
 
-// === Логика UI ===
 void PlayerWindow::enablePlayerInput(bool enabled) {
     ui->regionInput->setEnabled(enabled);
     ui->makeMoveButton->setEnabled(enabled);
     
     if (enabled) {
         ui->regionInput->setPlaceholderText("Введите название региона");
-        // Безопасный фокус через таймер (не блокирует macOS Qt)
         QTimer::singleShot(50, this, [this]() { if (ui->regionInput) ui->regionInput->setFocus();});
     } else {
         ui->regionInput->setPlaceholderText("Ожидание...");
@@ -119,39 +115,33 @@ void PlayerWindow::on_regionInput_returnPressed() {
     ui->regionInput->clear();
 }
 
-// === НОВЫЙ МЕТОД ===
 void PlayerWindow::setNetworkMode(bool isNetwork, int playerNumber) {
     isNetworkMode_ = isNetwork;
     myPlayerNumber_ = playerNumber;
     
     if (isNetworkMode_ && playerNumber > 0) {
-        setWindowTitle(QString("Игра — Игрок %1").arg(playerNumber));
+        setWindowTitle(QString("Игра — Игрок №1").arg(playerNumber));
     }
     
     refreshTextLog();
 }
 
-// === ИЗМЕНЁННЫЙ МЕТОД updateTurn ===
 void PlayerWindow::updateTurn(int turn) {
-    if (isNetworkMode_ && myPlayerNumber_ > 0) {
-        // В сетевом режиме: turn 0 = ход Игрока 1, turn 1 = ход Игрока 2
+    if (isNetworkMode_ && myPlayerNumber_ > 0)
         playerTurn_ = (turn == myPlayerNumber_ - 1);
-    } else {
-        // В одиночном режиме: turn 0 = ход игрока, turn 1 = ход компьютера
+    else 
         playerTurn_ = (turn == 0);
-    }
+    
     
     currentTurnTimer_.restart();
     enablePlayerInput(playerTurn_ && gameInitialized_);
     refreshTextLog();
 }
 
-// === ИЗМЕНЁННЫЙ МЕТОД refreshTextLog ===
 void PlayerWindow::refreshTextLog() {
     if (!gameInitialized_) return;
     ui->gameInfoText->clear();
     
-    // === ОТОБРАЖЕНИЕ НОМЕРА ИГРОКА В СЕТЕВОМ РЕЖИМЕ ===
     if (isNetworkMode_ && myPlayerNumber_ > 0) {
         QString playerColor = (myPlayerNumber_ == 1) ? "blue" : "red";
         ui->gameInfoText->append(QString("<font color='%1' size='4'><b>Вы — Игрок %2</b></font>")
@@ -178,7 +168,6 @@ void PlayerWindow::refreshTextLog() {
     
     ui->gameInfoText->append("------------------------------");
     
-    // === РАЗНЫЕ СООБЩЕНИЯ ДЛЯ РАЗНЫХ РЕЖИМОВ ===
     if (isNetworkMode_) {
         if (playerTurn_) {
             ui->gameInfoText->append("<font color='green'><b>Ваш ход!</b></font>");
@@ -194,14 +183,11 @@ void PlayerWindow::refreshTextLog() {
     cursor.movePosition(QTextCursor::End);
     ui->gameInfoText->setTextCursor(cursor);
 }
-
-// === ИЗМЕНЁННЫЙ МЕТОД onGameFinished ===
 void PlayerWindow::onGameFinished(int winner) {
     enablePlayerInput(false);
     
     QString title, msg;
     if (isNetworkMode_) {
-        // В сетевом режиме winner = 0 означает победу Игрока 1, winner = 1 — Игрока 2
         if (winner == myPlayerNumber_ - 1) {
             title = "Победа!";
             msg = "Поздравляем, вы победили!";
@@ -216,7 +202,6 @@ void PlayerWindow::onGameFinished(int winner) {
     
     QMessageBox::information(this, title, msg);
     
-    // В сетевом режиме не предлагаем начать заново (это делает хост)
     if (!isNetworkMode_) {
         if (QMessageBox::question(this, "Новая игра", "Начать заново?",
                                   QMessageBox::Yes | QMessageBox::No) == QMessageBox::Yes) {

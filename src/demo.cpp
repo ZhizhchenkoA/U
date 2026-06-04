@@ -13,11 +13,13 @@ MapWidget::MapWidget(Map* m, QWidget* parent)
     setMinimumSize(400, 300);
     setMouseTracking(true);
     
+    // Creating threads
     workerThread_ = new QThread(this);
     mapWorker_ = new MapWorker();
     mapWorker_->moveToThread(workerThread_);
     workerThread_->start();
 
+    // Changing timer
     rebuildTimer_ = new QTimer(this);
     rebuildTimer_->setSingleShot(true);
     rebuildTimer_->setInterval(150);
@@ -52,7 +54,8 @@ void MapWidget::resetView() {
 void MapWidget::requestRebuildCache() {
     widgetWidth = width();
     widgetHeight = height();
-    if (widgetWidth <= 0 || widgetHeight <= 0) return;
+    if (widgetWidth <= 0 || widgetHeight <= 0) 
+        return;
     rebuildTimer_->start();
 }
 
@@ -134,8 +137,7 @@ void MapWidget::mouseMoveEvent(QMouseEvent* event) {
 }
 
 void MapWidget::mouseReleaseEvent(QMouseEvent* event) {
-    if (isPanning_ && (event->button() == Qt::MiddleButton ||
-                       event->button() == Qt::LeftButton)) {
+    if (isPanning_ && (event->button() == Qt::MiddleButton || event->button() == Qt::LeftButton)) {
         isPanning_ = false;
         setCursor(Qt::ArrowCursor);
         event->accept();
@@ -175,7 +177,7 @@ void MapWidget::paintEvent(QPaintEvent*) {
     QFont smallFont = painter.font();
     smallFont.setPointSize(10);
     painter.setFont(smallFont);
-    QString zoomText = QString("Масштаб: x%1 | Ctrl+ЛКМ или СКМ — перетащить | Двойной клик — сброс")
+    QString zoomText = QString("Масштаб | Ctrl+ЛКМ или СКМ — перетащить | Двойной клик — сброс")
                            .arg(zoomFactor_, 0, 'f', 2);
     painter.drawText(10, height() - 10, zoomText);
     
@@ -193,15 +195,14 @@ void MapWidget::paintEvent(QPaintEvent*) {
             }
         }
     }
-    
 
     painter.setBrush(Qt::NoBrush);
     painter.setPen(QPen(Qt::black, 1));
     for (QMap<AbstractSubject*, CachedSubject*>::const_iterator it = cache.begin(); 
          it != cache.end(); ++it) {
         CachedSubject* cached = it.value();
-        for (int i = 0; i < cached->polygons.size(); ++i) {
+        for (int i = 0; i < cached->polygons.size(); i++)
             painter.drawPolygon(cached->polygons[i], Qt::WindingFill);
-        }
+
     }
 }

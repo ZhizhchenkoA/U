@@ -19,7 +19,7 @@ public:
     void setMap(Map* map);
     void initGame();
     
-    // === НОВЫЙ МЕТОД ДЛЯ СЕТЕВОГО РЕЖИМА ===
+    // method for network mode
     void setNetworkMode(bool isNetwork, int playerNumber = 0);
 
 public slots:
@@ -58,9 +58,9 @@ private:
     bool playerTurn_ = true;
     bool gameInitialized_ = false;
     
-    // === НОВЫЕ ПОЛЯ ДЛЯ СЕТЕВОГО РЕЖИМА ===
+
     bool isNetworkMode_ = false;
-    int myPlayerNumber_ = 0; // 1 или 2 (0 — не задан)
+    int myPlayerNumber_ = 0; 
 
     std::string currentRegionName_;
     std::string finalRegionName_;

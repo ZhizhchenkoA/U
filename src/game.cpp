@@ -5,7 +5,6 @@
 #include <ctime>
 #include <iostream>
 
-// Вспомогательная: поиск индекса элемента в std::list
 static int index_of_in_list(const std::list<AbstractSubject*>& lst, AbstractSubject* ptr) {
     int idx = 0;
     for (auto* item : lst) {
@@ -15,13 +14,10 @@ static int index_of_in_list(const std::list<AbstractSubject*>& lst, AbstractSubj
     return -1;
 }
 
-// Вспомогательная: проверка, посещён ли регион
-static bool is_visited_in_game(const std::vector<AbstractSubject*>& visited, 
-                               AbstractSubject* subject) {
+static bool is_visited_in_game(const std::vector<AbstractSubject*>& visited, AbstractSubject* subject) {
     return std::find(visited.begin(), visited.end(), subject) != visited.end();
 }
 
-// BFS для расчёта дистанций
 std::vector<int> Game::calculateDistances() {
     std::vector<int> distances(NumberOfSubjects, -1);
     std::vector<bool> visitedInBFS(NumberOfSubjects, false);
@@ -89,10 +85,9 @@ Game::~Game() = default;
 int Game::makePlayerMove(const std::string& destination) {
     if (GameFinished || Turn != 0) return -1;
     
-    // Поиск региона по имени
     AbstractSubject* destSubject = nullptr;
     for (AbstractSubject* subject : Subjects) {
-        const auto& names = subject->get_names();
+        const std::list<std::string>& names = subject->get_names();
         if (std::find(names.begin(), names.end(), destination) != names.end()) {
             destSubject = subject;
             break;
@@ -107,8 +102,7 @@ int Game::makePlayerMove(const std::string& destination) {
         return -1;
     }
     
-    // Проверка: сосед и не посещён
-    const auto& neighbors = Position->get_neighbours();
+    const std::list<AbstractSubject*>& neighbors = Position->get_neighbours();
     bool isNeighbor = (std::find(neighbors.begin(), neighbors.end(), destSubject) != neighbors.end());
     bool wasVisited = is_visited_in_game(Visited, destSubject) || destSubject->is_visited();
     
@@ -119,8 +113,6 @@ int Game::makePlayerMove(const std::string& destination) {
         }
         return -1;
     }
-    
-    // Выполнение хода
     Position = destSubject;
     Visited.push_back(Position);
     Position->visit();
@@ -136,7 +128,7 @@ int Game::makePlayerMove(const std::string& destination) {
 int Game::makeComputerMove() {
     if (GameFinished || Turn != 1) return -1;
     
-    auto distances = calculateDistances();  // std::vector, автоматическая очистка
+    auto distances = calculateDistances();  
     
     int currentIndex = index_of_in_list(Subjects, Position);
     if (currentIndex == -1) {
@@ -144,9 +136,8 @@ int Game::makeComputerMove() {
         return -2;
     }
     
-    const auto& neighbors = Position->get_neighbours();
+    const std::list<AbstractSubject*>& neighbors = Position->get_neighbours();
     
-    // Проверка немедленной победы
     for (AbstractSubject* neighbor : neighbors) {
         if (neighbor == FinalPosition) {
             bool wasVisited = is_visited_in_game(Visited, FinalPosition) || FinalPosition->is_visited();
@@ -160,7 +151,6 @@ int Game::makeComputerMove() {
         }
     }
     
-    // Стратегия: ход с нечётной дистанцией
     AbstractSubject* bestMove = nullptr;
     int bestDistance = -1;
     bool foundOdd = false;
@@ -205,11 +195,10 @@ int Game::makeComputerMove() {
     return 0;
 }
 
-// === Геттеры для UI ===
 
 std::string Game::getCurrentRegionName() const {
     if (!Position || Position->get_names().empty()) return "";
-    return Position->get_names().front();  // front() вместо Get(0)
+    return Position->get_names().front(); 
 }
 
 std::string Game::getStartRegionName() const {
@@ -253,15 +242,12 @@ bool Game::isGameFinished() const { return GameFinished; }
 int Game::getWinner() const {
     if (!GameFinished) return -1;
     
-    if (Position == FinalPosition) {
-        // Если сейчас Turn == 1, значит последний ход сделал игрок -> победа игрока (0)
-        // Если Turn == 0, значит последний ход сделал компьютер -> победа компьютера (1)
+    if (Position == FinalPosition) 
         return (Turn == 1) ? 0 : 1;
-    }
     
-    if (Mistakes >= 3) return 1; // Компьютер победил из-за 3 ошибок игрока
     
-    // Если игра закончилась из-за отсутствия ходов у компьютера
+    if (Mistakes >= 3) 
+        return 1; 
     return (Turn == 0) ? 1 : 0;
 }
 
@@ -281,7 +267,6 @@ void Game::reset() {
     Visited.clear();
     Visited.push_back(Position);
     
-    // Сброс флагов посещения
     for (AbstractSubject* subject : Subjects) {
         subject->unvisit();
     }
@@ -325,7 +310,8 @@ int Game::getComputerTotalTime() const {
 }
 
 int Game::makeNetworkMove(const std::string& destination, int expectedTurn) {
-    if (GameFinished || Turn != expectedTurn) return -1; // Ход не в свою очередь
+    if (GameFinished || Turn != expectedTurn) 
+        return -1;
     
     AbstractSubject* destSubject = nullptr;
     for (AbstractSubject* subject : Subjects) {
@@ -360,12 +346,11 @@ int Game::makeNetworkMove(const std::string& destination, int expectedTurn) {
     Visited.push_back(Position);
     Position->visit();
     
-    // Переключаем ход: 0 -> 1, 1 -> 0
     Turn = 1 - expectedTurn;
     
     if (Position == FinalPosition) {
         GameFinished = true;
-        return 1; // Победа того, кто сделал ход
+        return 1; 
     }
-    return 0; // Успешный ход
+    return 0; 
 }

@@ -40,7 +40,6 @@ bool NetworkServer::startListening(quint16 port) {
         return false;
     }
     emit logMessage("Сервер запущен на порту " + QString::number(port) + ". Ожидание игроков...");
-    // Автоматический старт игры убран отсюда
     return true;
 }
 
@@ -55,16 +54,15 @@ void NetworkServer::startGame() {
     }
     
     gameStarted_ = true;
-    emit logMessage("=== ИГРА НАЧАЛАСЬ! ===");
+    emit logMessage("   ИГРА НАЧАЛАСЬ! ");
     emit gameStarted();
     
     QMetaObject::invokeMethod(gameWorker_, [=]() {
-        auto& subjects = map_->get_subjects();
+        std::list<AbstractSubject *>& subjects = map_->get_subjects();
         gameWorker_->init(static_cast<int>(subjects.size()), &subjects);
     }, Qt::QueuedConnection);
 }
 
-// В методе onNewConnection() замените блок подключения на этот:
 void NetworkServer::onNewConnection() {
     if (clients_.size() >= 2) {
         QTcpSocket* extra = server_->nextPendingConnection();
@@ -77,7 +75,7 @@ void NetworkServer::onNewConnection() {
     QTcpSocket* client = server_->nextPendingConnection();
     clients_.append(client);
     
-    int playerNumber = clients_.size(); // 1 для первого, 2 для второго
+    int playerNumber = clients_.size(); 
     emit logMessage(QString("Игрок %1 подключился.").arg(playerNumber));
     
     client->write(NetworkProtocol::makeWelcomeMsg(playerNumber).toUtf8());
@@ -137,7 +135,7 @@ void NetworkServer::onGameStateChanged() {
 void NetworkServer::broadcastState(const QString& errorMsg) {
     if (clients_.isEmpty() || !gameWorker_ || !gameWorker_->getGame()) return;
     
-    auto* game = gameWorker_->getGame();
+    Game* game = gameWorker_->getGame();
     QString jsonMsg = NetworkProtocol::makeStateMsg(
         game->getTurn(),
         game->getCurrentRegionName(),

@@ -9,7 +9,6 @@ MapWorker::~MapWorker() = default;
 void MapWorker::processCache(Map* map, int widgetWidth, int widgetHeight) {
     qDebug() << "[MapWorker] processCache started. Size:" << widgetWidth << "x" << widgetHeight;
     
-    // ЗАЩИТА: Если размер некорректен, не выполняем расчёты
     if (widgetWidth <= 0 || widgetHeight <= 40) {
         qDebug() << "[MapWorker] Aborted: Invalid widget size";
         return;

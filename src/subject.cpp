@@ -6,8 +6,8 @@ using json = nlohmann::json;
 
 static AbstractSubject* find_in_list_by_name(const std::list<AbstractSubject*>& lst, const std::string& name)
 {
-    for (auto* subject : lst) {
-        const auto& names = subject->get_names();
+    for (AbstractSubject* subject : lst) {
+        const std::list<std::string>& names = subject->get_names();
         if (std::find(names.begin(), names.end(), name) != names.end()) {
             return subject;
         }
@@ -24,7 +24,6 @@ AbstractSubject* Map::find_subject_by_name(
 
 void AbstractSubject::add_polygon()
 {
-    // Создаём новый полигон и добавляем его в конец списка
     border.emplace_back(new Polygon());
 }
 
@@ -33,15 +32,13 @@ void AbstractSubject::add_coord(Coordinates c)
     if (border.empty()) {
         return;
     }
-    // ИСПРАВЛЕНО: добавляем координаты в последний созданный полигон (back), 
-    // а не в первый (front)
+
     border.back()->push_back(c);
 }
 
 void Map::get_from_JSON(const std::string& subject_borders_file,
                         const std::string& subject_neighbours_file)
 {
-    // === Загрузка границ ===
     std::ifstream borders_in(subject_borders_file);
     if (!borders_in.is_open()) {
         throw FileNotFound();
@@ -51,7 +48,7 @@ void Map::get_from_JSON(const std::string& subject_borders_file,
     borders_in >> borders_json;
     
     for (const auto& feature : borders_json["features"]) {
-        auto* subj = new SubjectRussia();
+        AbstractSubject* subj = new SubjectRussia();
         std::string name = feature["properties"]["name"].get<std::string>();
         subj->add_name(name);
         
@@ -67,20 +64,17 @@ void Map::get_from_JSON(const std::string& subject_borders_file,
             }
         }
         else if (type == "MultiPolygon") {
-            // Для MultiPolygon каждый элемент массива - это отдельный полигон (например, остров)
             for (const auto& poly : geom["coordinates"]) {
-                subj->add_polygon();          // Создаём новый полигон для этого острова
-                const auto& ring = poly[0];   // Берём внешний контур этого полигона
+                subj->add_polygon();      
+                const auto& ring = poly[0];  
                 for (const auto& pt : ring) {
                     Coordinates c{pt[0].get<double>(), pt[1].get<double>()};
-                    subj->add_coord(c);       // Теперь координаты попадут в правильный полигон
+                    subj->add_coord(c); 
                 }
             }
         }
         subject_list.push_back(subj);
     }
-    
-    // === Загрузка соседей ===
     std::ifstream neigh_in(subject_neighbours_file);
     if (!neigh_in.is_open()) {
         throw FileNotFound();
@@ -107,6 +101,7 @@ bool Map::is_neighbours(const std::string& subject_name_1,
                         const std::string& subject_name_2)
 {
     AbstractSubject* subj1 = find_subject_by_name(subject_list, subject_name_1);
-    if (!subj1) return false;
+    if (!subj1) 
+        return false;
     return find_in_list_by_name(subj1->get_neighbours(), subject_name_2) != nullptr;
 }
