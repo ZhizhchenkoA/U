@@ -15,14 +15,12 @@ public:
 
 private slots:
     void onStartComputerClicked();
-    void onStartNetworkClicked();
     void onSelectMapClicked();
 
 private:
     QVBoxLayout *mainLayout;
     QLabel *titleLabel;
     QPushButton *btnComputer;
-    QPushButton *btnNetwork;
     QPushButton *btnMap;
     std::function<void()> onStartGame;
 };

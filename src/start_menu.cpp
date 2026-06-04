@@ -1,5 +1,4 @@
 #include "start_menu.h"
-#include "network_menu.h"
 #include <QMessageBox>
 #include <QFileDialog>
 
@@ -17,21 +16,17 @@ StartMenu::StartMenu(QWidget *parent) : QMainWindow(parent) {
     mainLayout->addWidget(titleLabel);
 
     btnComputer = new QPushButton("Игра против компьютера", this);
-    btnNetwork = new QPushButton("Сетевая игра", this);
     btnMap = new QPushButton("Выбор карты", this);
 
     QString btnStyle = "padding: 12px; font-size: 16px; margin: 8px; border-radius: 5px;";
     btnComputer->setStyleSheet(btnStyle + "background-color: #4CAF50; color: white;");
-    btnNetwork->setStyleSheet(btnStyle + "background-color: #2196F3; color: white;");
     btnMap->setStyleSheet(btnStyle);
 
     mainLayout->addWidget(btnComputer);
-    mainLayout->addWidget(btnNetwork);
     mainLayout->addWidget(btnMap);
     mainLayout->addStretch();
 
     connect(btnComputer, &QPushButton::clicked, this, &StartMenu::onStartComputerClicked);
-    connect(btnNetwork, &QPushButton::clicked, this, &StartMenu::onStartNetworkClicked);
     connect(btnMap, &QPushButton::clicked, this, &StartMenu::onSelectMapClicked);
 }
 
@@ -48,25 +43,6 @@ void StartMenu::onStartComputerClicked() {
     }
 }
 
-void StartMenu::onStartNetworkClicked() {
-    // Создаём меню сети без родителя, чтобы оно открывалось поверх скрытого главного меню
-    auto *netMenu = new NetworkMenu(nullptr);
-    
-    // При возврате показываем главное меню и удаляем окно сети
-    connect(netMenu, &NetworkMenu::backToMainMenu, this, [this, netMenu]() {
-        netMenu->deleteLater();
-        this->show();
-    });
-    
-    // При выборе игры (пока заглушка)
-    connect(netMenu, &NetworkMenu::joinGame, this, [](const QString& host) {
-        QMessageBox::information(nullptr, "Network Game", 
-            "Starting network game with: " + host + "\nImplementation in progress.");
-    });
-
-    netMenu->show();
-    this->hide(); // Скрываем главное меню
-}
 
 void StartMenu::onSelectMapClicked() {
     QString fileName = QFileDialog::getOpenFileName(this, "Select Map File", "", 
